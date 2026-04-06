@@ -1,14 +1,13 @@
-# Gemini Code Assist configuration for ha-mcp
+# Gemini Code Assist configuration for ha-mcp (Kanary fork)
 
-# Enable persistent memory to improve responses over time
+# Disable persistent memory for clean canary baseline
 memory_config:
-  disabled: false
+  disabled: true
 
 # Code review configuration
 code_review:
-  # Require MEDIUM severity or higher to post comments
-  # This ensures test coverage and security issues are surfaced
-  comment_severity_threshold: MEDIUM
+  # Show all findings (LOW and above) for canary completeness
+  comment_severity_threshold: LOW
 
   # Limit comments to avoid overwhelming contributors
   max_review_comments: 15
@@ -21,3 +20,4 @@ code_review:
 
 # No playful elements in professional project
 have_fun: false
+
