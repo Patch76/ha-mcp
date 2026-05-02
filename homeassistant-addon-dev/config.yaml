@@ -1,6 +1,6 @@
 name: "Home Assistant MCP Server (Dev)"
 description: "Development channel - AI assistant integration via MCP (unstable)"
-version: "7.4.0.dev241"
+version: "7.4.0.dev242"
 slug: "ha_mcp_dev"
 url: "https://github.com/homeassistant-ai/ha-mcp"
 stage: experimental
