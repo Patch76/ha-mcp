@@ -1680,8 +1680,9 @@ mcpServers:
     if (state.client?.referenceUrl) {
       referenceLinks.push(`<li><a class="hover:text-blue-400" href="${state.client.referenceUrl}" target="_blank" rel="noopener noreferrer">clients/${state.client.id}.md</a></li>`);
     }
-    if (isLocal && state.platform?.referenceUrl) {
-      referenceLinks.push(`<li><a class="hover:text-blue-400" href="${state.platform.referenceUrl}" target="_blank" rel="noopener noreferrer">platforms/${state.platform.id}.md</a></li>`);
+    const platformEntry = isLocal ? state.platform : platformsData.find(p => p.id === setupInfo?.platform);
+    if (platformEntry?.referenceUrl) {
+      referenceLinks.push(`<li><a class="hover:text-blue-400" href="${platformEntry.referenceUrl}" target="_blank" rel="noopener noreferrer">platforms/${platformEntry.id}.md</a></li>`);
     }
     if (state.connection?.referenceUrl) {
       referenceLinks.push(`<li><a class="hover:text-blue-400" href="${state.connection.referenceUrl}" target="_blank" rel="noopener noreferrer">connections/${state.connection.id}.md</a></li>`);
