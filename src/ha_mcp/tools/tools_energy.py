@@ -96,7 +96,7 @@ def _compute_per_key_hashes(prefs: dict[str, Any]) -> dict[_PrefsKey, str]:
 
 
 def _is_no_prefs_error(error_msg: str) -> bool:
-    """True if an error string from send_websocket_message indicates
+    """Return True if an error string from send_websocket_message indicates
     ``ERR_NOT_FOUND "No prefs"`` from HA Core's energy/get_prefs handler.
 
     HA Core wraps the error as ``f"Command failed: {message}"``; the
@@ -147,7 +147,7 @@ def _shape_check(
     config: dict[str, Any],
     validate_only: dict[str, set[int]] | None = None,
 ) -> list[dict[str, str]]:
-    """Cheap local shape check before sending to the server.
+    """Perform a cheap local shape check before sending to the server.
 
     Validates that top-level keys have the expected list-of-dicts shape and
     that required identifying fields are present. Does NOT validate semantic
@@ -1212,7 +1212,7 @@ class EnergyTools:
         dry_run: bool,
         preview_payload: dict[str, Any],
     ) -> dict[str, Any]:
-        """Read-modify-write loop for convenience modes.
+        """Run the read-modify-write loop for convenience modes.
 
         Atomicity is with respect to the *entire* prefs snapshot, not just
         ``target_key``: ``_set_prefs`` validates the full ``config_hash``, so
