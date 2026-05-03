@@ -147,7 +147,7 @@ def _shape_check(
     config: dict[str, Any],
     validate_only: dict[str, set[int]] | None = None,
 ) -> list[dict[str, str]]:
-    """Perform a cheap local shape check before sending to the server.
+    """Validate config shape locally before sending to the server.
 
     Validates that top-level keys have the expected list-of-dicts shape and
     that required identifying fields are present. Does NOT validate semantic
@@ -1208,7 +1208,7 @@ class EnergyTools:
         dry_run: bool,
         preview_payload: dict[str, Any],
     ) -> dict[str, Any]:
-        """Run the read-modify-write loop for convenience modes.
+        """Run convenience-mode read-modify-write with dry-run backstop and hash-conflict retry.
 
         Atomicity is with respect to the *entire* prefs snapshot, not just
         ``target_key``: ``_set_prefs`` validates the full ``config_hash``, so
@@ -1241,7 +1241,11 @@ class EnergyTools:
                 # if the entry-construction logic ever changes. ``validate_only``
                 # scopes it to the appended tail (per issue #1086): for add_*
                 # this is the new entry, for remove_* this is an empty set so
-                # nothing is re-validated.
+                # nothing is re-validated. The heuristic assumes append-only /
+                # shrink-only mutators (current set: _add_*, _remove_*). An
+                # in-place mutator (where len(new) == len(existing) but content
+                # changed) would yield an empty appended_indices and skip the
+                # per-entry pass entirely — revisit before adding such a mutator.
                 appended_indices = set(
                     range(len(existing_list), len(new_list))
                 )
@@ -1286,8 +1290,12 @@ class EnergyTools:
                 # so a pre-existing (HA-validated) entry that would now fail
                 # a tightened ``_shape_check`` cannot block an unrelated
                 # add. For remove_* this set is empty — nothing new to
-                # re-validate. Assumes append-only/remove-only mutator
-                # semantics; revisit if an in-place mutator is added.
+                # re-validate. The heuristic assumes append-only / shrink-
+                # only mutators (current set: _add_*, _remove_*). An
+                # in-place mutator (where len(new) == len(existing) but
+                # content changed) would yield an empty appended_indices
+                # and skip the per-entry pass entirely — revisit before
+                # adding such a mutator.
                 appended_indices = set(
                     range(len(existing_list), len(new_list))
                 )
