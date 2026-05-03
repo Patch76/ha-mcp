@@ -23,23 +23,35 @@ const withBase = (path: string) => {
   return `${base}${cleanPath}`;
 };
 
+// GitHub blob URL for the per-entity reference markdown files. The bodies of
+// these `.md` files are NOT rendered on this site (see issue #1097); this URL
+// gives the wizard a "Full reference" link to the file on GitHub. Pinned to
+// `master` rather than `HEAD` so the link is explicit about which branch it
+// points at; if `master` is ever renamed, the wizard's link tier needs an
+// update along with everything else that hardcodes the branch name.
+const REFERENCE_BLOB_BASE = 'https://github.com/homeassistant-ai/ha-mcp/blob/master/site/src/content';
+
 // Create serializable data for client-side JS
 const clientsData = sortedClients.map(c => ({
   id: c.id,
   ...c.data,
   logo: withBase(c.data.logo),
+  referenceUrl: `${REFERENCE_BLOB_BASE}/clients/${c.id}.md`,
 }));
 const platformsData = sortedPlatforms.map(p => ({
   id: p.id,
   ...p.data,
+  referenceUrl: `${REFERENCE_BLOB_BASE}/platforms/${p.id}.md`,
 }));
 const connectionsData = sortedConnections.map(c => ({
   id: c.id,
   ...c.data,
+  referenceUrl: `${REFERENCE_BLOB_BASE}/connections/${c.id}.md`,
 }));
 const deploymentData = sortedDeployment.map(d => ({
   id: d.id,
   ...d.data,
+  referenceUrl: `${REFERENCE_BLOB_BASE}/deployment/${d.id}.md`,
 }));
 
 // Client transport capabilities for filtering
@@ -1335,7 +1347,7 @@ cloudflared tunnel run ha-mcp</code></pre>
         } else if (isOpenCode) {
           // OpenCode-specific stdio shape: type:"local", single command array, "environment" not "env"
           // The uvx-stdio shape (type, command, enabled, environment) is mirrored in
-          // site/src/content/clients/opencode.md and site/src/data/clients.ts — keep aligned.
+          // site/src/content/clients/opencode.md — keep aligned.
           // The Docker branch below intentionally omits the top-level `environment` key (env vars are
           // inlined as `-e KEY=VAL` in the command array), so the asymmetry is deliberate.
           const opencodeStdio = isDocker
@@ -1657,6 +1669,37 @@ mcpServers:
         }
       }
       instructions.push(uiSteps);
+    }
+
+    // Full reference links (issue #1097): the per-entity .md files in
+    // site/src/content/{clients,platforms,connections,deployment}/ are not
+    // rendered as standalone pages on this site. The wizard's inlined
+    // instructions above are the primary path; this block points at the
+    // raw markdown on GitHub for readers who want a deeper reference.
+    const referenceLinks = [];
+    if (state.client?.referenceUrl) {
+      referenceLinks.push(`<li><a class="hover:text-blue-400" href="${state.client.referenceUrl}" target="_blank" rel="noopener noreferrer">clients/${state.client.id}.md</a></li>`);
+    }
+    if (isLocal && state.platform?.referenceUrl) {
+      referenceLinks.push(`<li><a class="hover:text-blue-400" href="${state.platform.referenceUrl}" target="_blank" rel="noopener noreferrer">platforms/${state.platform.id}.md</a></li>`);
+    }
+    if (state.connection?.referenceUrl) {
+      referenceLinks.push(`<li><a class="hover:text-blue-400" href="${state.connection.referenceUrl}" target="_blank" rel="noopener noreferrer">connections/${state.connection.id}.md</a></li>`);
+    }
+    if (setupInfo?.deployment) {
+      const deploymentEntry = deploymentData.find(d => d.id === setupInfo.deployment);
+      if (deploymentEntry?.referenceUrl) {
+        referenceLinks.push(`<li><a class="hover:text-blue-400" href="${deploymentEntry.referenceUrl}" target="_blank" rel="noopener noreferrer">deployment/${deploymentEntry.id}.md</a></li>`);
+      }
+    }
+    if (referenceLinks.length > 0) {
+      instructions.push(`<div class="instruction-block border-slate-700/50 bg-slate-900/10">
+        <h4 class="instruction-title text-slate-300">Full reference (GitHub)</h4>
+        <p class="text-slate-400 text-sm mb-3">Per-entity reference notes on GitHub. These are not rendered as standalone pages on this site — they're authored as a deeper reference layer behind the wizard's quick-start instructions.</p>
+        <ul class="text-sm text-slate-400 space-y-1 list-disc list-inside">
+          ${referenceLinks.join('\n          ')}
+        </ul>
+      </div>`);
     }
 
     // Render all instructions (including UI client steps added during config generation)

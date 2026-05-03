@@ -718,6 +718,19 @@ Located in `.claude/skills/`:
 
 Invoke any skill with `/<skill-name> --help` for full documentation, or read `.claude/skills/<name>/SKILL.md`.
 
+## Site Content Collections
+
+The four content collections under `site/src/content/` (`clients/`, `platforms/`, `connections/`, `deployment/`) are consumed by `site/src/pages/setup.astro` for **frontmatter only** (`c.data` fields like `name`, `order`, `configFormat`). The markdown **body** of each `.md` file is NOT rendered as a standalone page anywhere on the deployed site — there is no per-client/platform/connection/deployment route, and the wizard does not call `.render()` or `<Content />` on any of them.
+
+The wizard surfaces a "Full reference (GitHub)" link tier in the final instructions panel that points at the corresponding `.md` files on GitHub blob view, so authored bodies remain reachable to readers but live outside the deployed site.
+
+**When authoring body content under one of these four collections:**
+- The body is reachable through the wizard's link tier; it is not a standalone page.
+- The wizard's hardcoded HTML in `setup.astro:1040+` is the primary instruction path users see; body content is a deeper reference layer behind it.
+- If you'd otherwise add prose to one of these bodies hoping it reaches a setup-wizard user, consider whether the content belongs in the wizard's instruction-builder branches (`isOpenCode`, `isClaude`, etc.) instead.
+
+History: bodies were originally written assuming per-collection-entry pages would render them, but those pages were never built. See issue #1097 for the decision and #1106 for the open follow-up to audit and migrate (or delete) the existing body content.
+
 ## Documentation Updates
 
 Update this file when:
