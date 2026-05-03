@@ -161,10 +161,12 @@ def _shape_check(
     indices outside each key's set are skipped per-entry. The "must be a
     list" structural check still fires for any present-and-listed key with a
     non-list value, so ``validate_only`` cannot be used to bypass structural
-    sanity. An empty dict skips the entire per-entry pass (used by
-    convenience-mode write paths whose mutator did not append any new
-    entries — e.g. remove operations). See issue #1086 for the asymmetric
-    over-validation problem this addresses.
+    sanity. A dict with an empty set for a key (``{key: set()}``) skips the
+    per-entry pass for that key while preserving the structural check —
+    this is what convenience-mode write paths pass for remove operations
+    (no new entries to validate, but the list shape is still checked). An
+    empty dict (``{}``) skips all keys entirely. See issue #1086 for the
+    asymmetric over-validation problem this addresses.
     """
     errors: list[dict[str, str]] = []
 
