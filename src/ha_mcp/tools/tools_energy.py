@@ -143,13 +143,28 @@ def _flatten_validation_errors(raw: Any) -> list[dict[str, str]]:
     return errors
 
 
-def _shape_check(config: dict[str, Any]) -> list[dict[str, str]]:
+def _shape_check(
+    config: dict[str, Any],
+    validate_only: dict[str, set[int]] | None = None,
+) -> list[dict[str, str]]:
     """Cheap local shape check before sending to the server.
 
     Validates that top-level keys have the expected list-of-dicts shape and
     that required identifying fields are present. Does NOT validate semantic
     correctness (stat IDs existing, units matching, etc.) — that's surfaced
     by the post-save server-side ``energy/validate`` call.
+
+    ``validate_only`` scopes the per-entry check. ``None`` (default) validates
+    every entry under every present top-level key — the original contract.
+    A dict scopes the check to the listed keys and, within each, only the
+    listed indices: top-level keys absent from the dict are skipped entirely,
+    indices outside each key's set are skipped per-entry. The "must be a
+    list" structural check still fires for any present-and-listed key with a
+    non-list value, so ``validate_only`` cannot be used to bypass structural
+    sanity. An empty dict skips the entire per-entry pass (used by
+    convenience-mode write paths whose mutator did not append any new
+    entries — e.g. remove operations). See issue #1086 for the asymmetric
+    over-validation problem this addresses.
     """
     errors: list[dict[str, str]] = []
 
@@ -159,11 +174,18 @@ def _shape_check(config: dict[str, Any]) -> list[dict[str, str]]:
     for key in _PREFS_TOP_LEVEL_KEYS:
         if key not in config:
             continue
+        if validate_only is not None and key not in validate_only:
+            continue
         value = config[key]
         if not isinstance(value, list):
             errors.append({"path": key, "message": "must be a list"})
             continue
+        allowed_indices: set[int] | None = (
+            validate_only[key] if validate_only is not None else None
+        )
         for idx, entry in enumerate(value):
+            if allowed_indices is not None and idx not in allowed_indices:
+                continue
             if not isinstance(entry, dict):
                 errors.append(
                     {
@@ -629,6 +651,7 @@ class EnergyTools:
         config_hash: str | dict[_PrefsKey, str],
         *,
         current_prefs: dict[str, Any] | None = None,
+        validate_only: dict[str, set[int]] | None = None,
     ) -> dict[str, Any]:
         """Shape-check → hash-check → save → post-save validate.
 
@@ -649,12 +672,23 @@ class EnergyTools:
         provided, the internal re-read is skipped — the convenience-mode
         path uses this to avoid a second ``energy/get_prefs`` round trip
         per attempt (the snapshot was already fetched by ``_mutate_atomic``).
+<<<<<<< HEAD
         Convenience modes always pass a ``str`` hash; the dict form is
         only reachable via direct mode='set' callers.
+=======
+        The hash check still runs against the provided snapshot as a
+        defensive guard.
+
+        ``validate_only`` is forwarded to ``_shape_check`` and lets a caller
+        scope the per-entry check to specific top-level keys / indices.
+        Convenience-mode writes pass the appended tail indices so
+        pre-existing (HA-validated) entries are not re-validated against the
+        local schema — see issue #1086.
+>>>>>>> 0825a15 (refactor: validate only new entries on convenience-mode writes (#1086))
         """
         try:
             # 1. Shape check (fast local, fail closed)
-            shape_errors = _shape_check(config)
+            shape_errors = _shape_check(config, validate_only=validate_only)
             if shape_errors:
                 raise_tool_error(
                     create_error_response(
@@ -1206,8 +1240,17 @@ class EnergyTools:
 
                 # Backstop shape-check, mirroring the real-run path through
                 # ``_set_prefs`` — keeps dry_run/real-run shape-equivalent
-                # if the entry-construction logic ever changes.
-                shape_errors = _shape_check({target_key: new_list})
+                # if the entry-construction logic ever changes. ``validate_only``
+                # scopes it to the appended tail (per issue #1086): for add_*
+                # this is the new entry, for remove_* this is an empty set so
+                # nothing is re-validated.
+                appended_indices = set(
+                    range(len(existing_list), len(new_list))
+                )
+                shape_errors = _shape_check(
+                    {target_key: new_list},
+                    validate_only={target_key: appended_indices},
+                )
                 if shape_errors:
                     raise_tool_error(
                         create_error_response(
@@ -1241,11 +1284,21 @@ class EnergyTools:
                 new_list = mutator(existing_list)
 
                 partial_config = {target_key: new_list}
+                # Per issue #1086: validate only the appended tail entries,
+                # so a pre-existing (HA-validated) entry that would now fail
+                # a tightened ``_shape_check`` cannot block an unrelated
+                # add. For remove_* this set is empty — nothing new to
+                # re-validate. Assumes append-only/remove-only mutator
+                # semantics; revisit if an in-place mutator is added.
+                appended_indices = set(
+                    range(len(existing_list), len(new_list))
+                )
                 try:
                     set_result = await self._set_prefs(
                         partial_config,
                         current_hash,
                         current_prefs=current_config,
+                        validate_only={target_key: appended_indices},
                     )
                 except ToolError as exc:
                     # _set_prefs raises ToolError(RESOURCE_LOCKED) on hash mismatch.

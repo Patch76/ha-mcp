@@ -151,6 +151,87 @@ class TestShapeCheck:
 
 
 # -----------------------------------------------------------------------------
+# _shape_check(validate_only=...) — issue #1086 (scope per-entry check)
+# -----------------------------------------------------------------------------
+
+
+class TestShapeCheckValidateOnly:
+    """``validate_only`` lets convenience-mode write paths skip re-validating
+    pre-existing entries that HA already accepted. ``None`` is the original
+    full-validation contract; a dict scopes per-key/per-index; an empty dict
+    skips the per-entry pass entirely."""
+
+    def test_none_validates_everything(self):
+        # Default behaviour preserved — invalid entry surfaces.
+        bad = {"device_consumption": [{"name": "no-stat"}]}
+        assert _shape_check(bad, validate_only=None)
+        assert _shape_check(bad)  # default arg, identical contract
+
+    def test_empty_dict_skips_all_per_entry_checks(self):
+        bad = {"device_consumption": [{"name": "no-stat"}]}
+        assert _shape_check(bad, validate_only={}) == []
+
+    def test_unlisted_key_is_skipped(self):
+        # Bad entry under device_consumption — but validate_only only asks
+        # for energy_sources, so device_consumption is skipped entirely.
+        config = {
+            "device_consumption": [{"name": "no-stat"}],
+            "energy_sources": [{"type": "grid"}],
+        }
+        assert (
+            _shape_check(
+                config, validate_only={"energy_sources": {0}}
+            )
+            == []
+        )
+
+    def test_unlisted_indices_within_a_key_are_skipped(self):
+        # device_consumption[0] is bad, [1] is good. validate_only={1} only
+        # checks the good index — no errors surface.
+        config = {
+            "device_consumption": [
+                {"name": "no-stat-bad"},
+                {"stat_consumption": "sensor.good"},
+            ],
+        }
+        assert _shape_check(config, validate_only={"device_consumption": {1}}) == []
+
+    def test_listed_index_with_bad_entry_still_raises(self):
+        # validate_only including a bad index still surfaces it.
+        config = {
+            "device_consumption": [
+                {"stat_consumption": "sensor.good"},
+                {"name": "no-stat-bad"},
+            ],
+        }
+        errors = _shape_check(
+            config, validate_only={"device_consumption": {1}}
+        )
+        assert any("stat_consumption" in e["message"] for e in errors)
+
+    def test_structural_must_be_a_list_check_still_fires_for_listed_keys(self):
+        # The "must be a list" structural check is independent of
+        # validate_only's per-entry filter — caller cannot bypass it for a
+        # key they explicitly listed.
+        errors = _shape_check(
+            {"device_consumption": "not a list"},
+            validate_only={"device_consumption": {0}},
+        )
+        assert {"path": "device_consumption", "message": "must be a list"} in errors
+
+    def test_structural_must_be_a_list_check_skipped_for_unlisted_keys(self):
+        # …but a non-list value under an UNLISTED key is skipped, since
+        # the caller did not ask for that key.
+        assert (
+            _shape_check(
+                {"device_consumption": "not a list"},
+                validate_only={"energy_sources": set()},
+            )
+            == []
+        )
+
+
+# -----------------------------------------------------------------------------
 # ha_manage_energy_prefs — mode="get"
 # -----------------------------------------------------------------------------
 
@@ -1106,6 +1187,164 @@ class TestConvenienceModesPassStrHash:
             },
         )
         assert captured["config_hash_type"] == "str"
+
+
+# -----------------------------------------------------------------------------
+# issue #1086 — convenience-mode writes do not re-validate pre-existing entries
+# -----------------------------------------------------------------------------
+
+
+class TestConvenienceModesPreExistingInvalid:
+    """Regression for issue #1086. ``_set_prefs`` previously ran
+    ``_shape_check`` over the full union ``existing + new``, so a
+    pre-existing entry that fails the local schema would block an
+    unrelated add/remove. The fix scopes the check to the appended tail
+    via ``validate_only``: ``add_*`` validates only the new entry,
+    ``remove_*`` validates nothing (the snapshot was already HA-valid).
+    Reproduced here by feeding back a deliberately-invalid pre-existing
+    entry from ``energy/get_prefs``.
+    """
+
+    async def test_add_device_succeeds_with_invalid_pre_existing(self, tools):
+        invalid_prefs = {
+            "energy_sources": [],
+            "device_consumption": [{"name": "broken_no_stat"}],  # invalid
+            "device_consumption_water": [],
+        }
+        tools._client.send_websocket_message.side_effect = [
+            {"success": True, "result": invalid_prefs},
+            {"success": True, "result": None},
+            {"success": True, "result": _empty_validate_result()},
+        ]
+
+        result = await tools.ha_manage_energy_prefs(
+            mode="add_device", stat_consumption="sensor.fridge_energy"
+        )
+        assert result["success"] is True
+        # The pre-existing broken entry survives unchanged in the saved
+        # payload — full-replace semantics on the top-level key.
+        save_payload = tools._client.send_websocket_message.call_args_list[
+            1
+        ].args[0]
+        assert save_payload["device_consumption"] == [
+            {"name": "broken_no_stat"},
+            {"stat_consumption": "sensor.fridge_energy"},
+        ]
+
+    async def test_add_source_succeeds_with_invalid_pre_existing(self, tools):
+        invalid_prefs = {
+            # An energy_sources entry missing the required stat_energy_from
+            # for non-grid types (would fail local _shape_check today).
+            "energy_sources": [{"type": "solar"}],
+            "device_consumption": [],
+            "device_consumption_water": [],
+        }
+        new_source = {
+            "type": "battery",
+            "stat_energy_from": "sensor.battery_in",
+            "stat_energy_to": "sensor.battery_out",
+        }
+
+        tools._client.send_websocket_message.side_effect = [
+            {"success": True, "result": invalid_prefs},
+            {"success": True, "result": None},
+            {"success": True, "result": _empty_validate_result()},
+        ]
+
+        result = await tools.ha_manage_energy_prefs(
+            mode="add_source", source=new_source
+        )
+        assert result["success"] is True
+        save_payload = tools._client.send_websocket_message.call_args_list[
+            1
+        ].args[0]
+        assert save_payload["energy_sources"][1] == new_source
+
+    async def test_remove_device_succeeds_with_invalid_pre_existing(self, tools):
+        invalid_prefs = {
+            "energy_sources": [],
+            "device_consumption": [
+                {"stat_consumption": "sensor.fridge_energy"},
+                {"name": "broken_no_stat"},  # invalid sibling
+            ],
+            "device_consumption_water": [],
+        }
+
+        tools._client.send_websocket_message.side_effect = [
+            {"success": True, "result": invalid_prefs},
+            {"success": True, "result": None},
+            {"success": True, "result": _empty_validate_result()},
+        ]
+
+        result = await tools.ha_manage_energy_prefs(
+            mode="remove_device", stat_consumption="sensor.fridge_energy"
+        )
+        assert result["success"] is True
+        # The unaffected (still-broken) entry remains in the saved payload.
+        save_payload = tools._client.send_websocket_message.call_args_list[
+            1
+        ].args[0]
+        assert save_payload["device_consumption"] == [
+            {"name": "broken_no_stat"},
+        ]
+
+    async def test_add_device_dry_run_succeeds_with_invalid_pre_existing(
+        self, tools
+    ):
+        """Dry-run path's backstop ``_shape_check`` is also scoped to the
+        appended tail (mirroring the real-run path)."""
+        invalid_prefs = {
+            "energy_sources": [],
+            "device_consumption": [{"name": "broken_no_stat"}],
+            "device_consumption_water": [],
+        }
+        tools._client.send_websocket_message.return_value = {
+            "success": True,
+            "result": invalid_prefs,
+        }
+
+        result = await tools.ha_manage_energy_prefs(
+            mode="add_device",
+            stat_consumption="sensor.new",
+            dry_run=True,
+        )
+        assert result["success"] is True
+        assert result["dry_run"] is True
+
+    async def test_add_device_still_rejects_a_genuinely_invalid_new_entry(
+        self, tools
+    ):
+        """The fix does NOT silence validation of the genuinely new entry —
+        it only stops re-validating pre-existing siblings. A new entry that
+        fails the per-entry shape check still raises VALIDATION_FAILED.
+        Verified via the convenience helper's structural-by-construction
+        guarantee: ``_add_device`` constructs a well-formed entry from
+        typed parameters, so the only surface for a "bad new entry" is
+        ``mode='set'`` directly. See ``TestSetPrefs.test_shape_error_*``
+        for that path; this test pins the boundary by confirming the
+        snapshot's broken sibling is NOT silenced when ``mode='set'`` is
+        used directly with an unscoped ``validate_only=None`` (default).
+        """
+        invalid_prefs = {
+            "energy_sources": [],
+            "device_consumption": [{"name": "broken_no_stat"}],
+            "device_consumption_water": [],
+        }
+        full_hash = compute_config_hash(invalid_prefs)
+        tools._client.send_websocket_message.side_effect = [
+            {"success": True, "result": invalid_prefs},
+        ]
+
+        with pytest.raises(ToolError) as exc_info:
+            await tools.ha_manage_energy_prefs(
+                mode="set",
+                config=invalid_prefs,
+                config_hash=full_hash,
+            )
+        err = json.loads(str(exc_info.value))
+        # mode='set' direct path is unchanged: full _shape_check runs and
+        # surfaces the broken sibling.
+        assert "VALIDATION_FAILED" in json.dumps(err)
 
 
 # -----------------------------------------------------------------------------
