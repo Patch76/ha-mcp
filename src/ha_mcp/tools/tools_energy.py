@@ -674,19 +674,15 @@ class EnergyTools:
         provided, the internal re-read is skipped — the convenience-mode
         path uses this to avoid a second ``energy/get_prefs`` round trip
         per attempt (the snapshot was already fetched by ``_mutate_atomic``).
-<<<<<<< HEAD
         Convenience modes always pass a ``str`` hash; the dict form is
-        only reachable via direct mode='set' callers.
-=======
-        The hash check still runs against the provided snapshot as a
-        defensive guard.
+        only reachable via direct mode='set' callers. The hash check still
+        runs against the provided snapshot as a defensive guard.
 
         ``validate_only`` is forwarded to ``_shape_check`` and lets a caller
         scope the per-entry check to specific top-level keys / indices.
         Convenience-mode writes pass the appended tail indices so
         pre-existing (HA-validated) entries are not re-validated against the
         local schema — see issue #1086.
->>>>>>> 0825a15 (refactor: validate only new entries on convenience-mode writes (#1086))
         """
         try:
             # 1. Shape check (fast local, fail closed)
