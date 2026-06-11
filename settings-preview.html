@@ -484,6 +484,11 @@
   .a11y-section-title { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; }
   .a11y-section-help { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 12px; }
   .a11y-options { display: flex; flex-wrap: wrap; gap: 8px; }
+  /* The option groups are native fieldsets (group name in a hidden legend,
+     announced by screen readers); strip the default chrome. */
+  fieldset.a11y-options { border: 0; padding: 0; margin: 0; min-inline-size: auto; }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0;
+    margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
   .a11y-option { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
     border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 0.85rem;
     background: var(--bg); user-select: none; }
@@ -747,24 +752,26 @@
     <h3 class="a11y-section-title">Theme</h3>
     <p class="a11y-section-help">One-click color schemes. Dark is the default; Auto follows
       your OS preference and flips live when it changes.</p>
-    <div class="a11y-options" role="radiogroup" aria-label="Theme preset">
+    <fieldset class="a11y-options">
+      <legend class="visually-hidden">Theme preset</legend>
       <label class="a11y-option"><input type="radio" name="a11y-preset" value="dark"> <span class="a11y-preset-chip" data-chip="dark" aria-hidden="true">Aa</span> Dark</label>
       <label class="a11y-option"><input type="radio" name="a11y-preset" value="light"> <span class="a11y-preset-chip" data-chip="light" aria-hidden="true">Aa</span> Light</label>
       <label class="a11y-option"><input type="radio" name="a11y-preset" value="auto"> <span class="a11y-preset-chip" data-chip="auto" aria-hidden="true"></span> Auto</label>
       <label class="a11y-option"><input type="radio" name="a11y-preset" value="paper"> <span class="a11y-preset-chip" data-chip="paper" aria-hidden="true">Aa</span> Paper</label>
       <label class="a11y-option"><input type="radio" name="a11y-preset" value="gray"> <span class="a11y-preset-chip" data-chip="gray" aria-hidden="true">Aa</span> Gray</label>
       <label class="a11y-option"><input type="radio" name="a11y-preset" value="contrast"> <span class="a11y-preset-chip" data-chip="contrast" aria-hidden="true">Aa</span> High Contrast</label>
-    </div>
+    </fieldset>
   </section>
   <section class="a11y-section">
     <h3 class="a11y-section-title">Text size</h3>
     <p class="a11y-section-help">Scales the root font size. Browser zoom (Ctrl/Cmd +) still works on top of this.</p>
-    <div class="a11y-options" role="radiogroup" aria-label="Text size">
+    <fieldset class="a11y-options">
+      <legend class="visually-hidden">Text size</legend>
       <label class="a11y-option"><input type="radio" name="a11y-font-size" value="100"> 100%</label>
       <label class="a11y-option"><input type="radio" name="a11y-font-size" value="115"> 115%</label>
       <label class="a11y-option"><input type="radio" name="a11y-font-size" value="130"> 130%</label>
       <label class="a11y-option"><input type="radio" name="a11y-font-size" value="150"> 150%</label>
-    </div>
+    </fieldset>
   </section>
   <section class="a11y-section">
     <h3 class="a11y-section-title">Custom colors</h3>
@@ -3826,12 +3833,16 @@ loadFsCustomPaths();
     headerToggle.addEventListener('change', () => {
       setPref('theme', headerToggle.value);
       reflectPreset();
+      refreshSwatches();
     });
   }
 
   // Re-apply when the OS preference flips while in Auto.
   mql.addEventListener('change', () => {
-    if (read('theme') === 'auto') applyTheme('auto');
+    if (read('theme') === 'auto') {
+      applyTheme('auto');
+      refreshSwatches();
+    }
   });
 
   reflectRadio('a11y-font-size', read('fontSize'));
@@ -3856,16 +3867,23 @@ loadFsCustomPaths();
       cssColorToHex(rootStyle.getPropertyValue('--brand'));
   };
   const customInputs = document.querySelectorAll('input[type="color"][data-custom]');
-  {
-    const custom = applyCustom(read('custom'));
-    updateContrastWarning(custom);
+  // Sync the swatch wells with reality: a stored custom value wins,
+  // otherwise the active theme's computed color. Re-run after anything
+  // that changes the active palette (preset click, header toggle, OS
+  // auto-flip, clear, reset) so the wells never keep showing a previous
+  // theme's colors.
+  const refreshSwatches = () => {
+    let custom = {};
+    try { custom = JSON.parse(read('custom') || '{}') || {}; } catch (_) { /* ignore */ }
     customInputs.forEach((inp) => {
       const v = custom[inp.dataset.custom];
       const fallback = currentColorFor(inp.dataset.custom);
       if (HEX_RE.test(v || '')) inp.value = v;
       else if (fallback) inp.value = fallback;
     });
-  }
+  };
+  updateContrastWarning(applyCustom(read('custom')));
+  refreshSwatches();
   customInputs.forEach((inp) => {
     inp.addEventListener('input', () => {
       let custom = {};
@@ -3881,6 +3899,7 @@ loadFsCustomPaths();
     clearBtn.addEventListener('click', () => {
       write('custom', '');
       updateContrastWarning(applyCustom(''));
+      refreshSwatches();
     });
   }
 
@@ -3896,6 +3915,7 @@ loadFsCustomPaths();
       if (t.name === 'a11y-preset') {
         applyPreset(t.value);
         if (headerToggle) headerToggle.value = read('theme');
+        refreshSwatches();
       } else if (t.name === 'a11y-font-size') {
         setPref('fontSize', t.value);
       }
@@ -3914,6 +3934,7 @@ loadFsCustomPaths();
       reflectRadio('a11y-font-size', PREFS.fontSize.default);
       reflectPreset();
       if (headerToggle) headerToggle.value = PREFS.theme.default;
+      refreshSwatches();
     });
   }
 })();
