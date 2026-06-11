@@ -1,0 +1,182 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="UTF-8"><meta name="description" content="AI-powered smart home control through the Model Context Protocol"><meta name="viewport" content="width=device-width"><link rel="icon" type="image/svg+xml" href="/ha-mcp/favicon.svg"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet"><meta name="generator" content="Astro v6.1.10"><title>Home Assistant MCP Server</title><script data-purpose="anti-fouc">
+      // #1572 accessibility-pref resolver — runs before CSS evaluates so
+      // data-theme / data-contrast / data-shade and the root font-size are
+      // set on <html> ahead of paint (no FOUC, no jump). Reads saved choices
+      // from localStorage with safe defaults; falls back to
+      // prefers-color-scheme for "auto" theme.
+      // Duplicate of the same logic in src/ha_mcp/settings_ui.py head — both
+      // surfaces share the localStorage keys, so any change here must be
+      // mirrored there (and vice versa) or one surface paints with the wrong
+      // attributes. Enforced by tests/src/unit/test_anti_fouc_parity.py.
+      (function () {
+        var root = document.documentElement;
+        function readPref(key, fallback) {
+          try { return localStorage.getItem(key) || fallback; } catch (e) { return fallback; }
+        }
+        try {
+          var themePref = readPref('ha-mcp-theme', 'auto');
+          var theme = themePref === 'auto'
+            ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
+            : themePref;
+          root.setAttribute('data-theme', theme);
+
+          var contrastPref = readPref('ha-mcp-contrast', 'normal');
+          if (contrastPref === 'high') root.setAttribute('data-contrast', 'high');
+
+          var shadePref = readPref('ha-mcp-shade', 'off-white');
+          if (shadePref !== 'off-white') root.setAttribute('data-shade', shadePref);
+
+          var sizePref = parseInt(readPref('ha-mcp-font-size', '100'), 10);
+          if (!isNaN(sizePref) && sizePref >= 100 && sizePref <= 150 && sizePref !== 100) {
+            root.style.fontSize = (16 * sizePref / 100) + 'px';
+          }
+        } catch (e) {
+          root.setAttribute('data-theme', 'dark');
+        }
+      })();
+    </script><!-- Cloudflare Web Analytics --><script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon="{&quot;token&quot;: &quot;65196c0f415f4f3690e13ad77fa44cb0&quot;}"></script><link rel="stylesheet" href="/ha-mcp/docs-v2/_astro/Nav.CfoEQgvr.css"></head> <body class="min-h-screen text-[var(--text-primary)] antialiased body-background">  <nav class="sticky top-0 z-50 border-b border-white/[0.06] bg-surface-0/95 backdrop-blur-md"> <div class="container mx-auto px-4 max-w-6xl"> <div class="flex items-center justify-between h-16"> <a href="/ha-mcp/docs-v2/" class="flex items-center gap-2.5"> <img src="/ha-mcp/docs-v2/icon.svg" alt="Home Assistant MCP" class="h-8 w-8"> <span class="font-display font-semibold text-white text-lg hidden sm:inline tracking-tight">ha-mcp</span> </a> <div class="flex items-center gap-1"> <a href="/ha-mcp/docs-v2/" class="px-3 py-1.5 rounded-lg text-sm transition-colors text-brand font-medium bg-brand/[0.08]"> Home </a><a href="/ha-mcp/docs-v2/setup" class="px-3 py-1.5 rounded-lg text-sm transition-colors text-[var(--text-secondary)] hover:text-white hover:bg-white/[0.04]"> Setup </a><a href="/ha-mcp/docs-v2/tools" class="px-3 py-1.5 rounded-lg text-sm transition-colors text-[var(--text-secondary)] hover:text-white hover:bg-white/[0.04]"> Tools </a><a href="/ha-mcp/docs-v2/faq" class="px-3 py-1.5 rounded-lg text-sm transition-colors text-[var(--text-secondary)] hover:text-white hover:bg-white/[0.04]"> FAQ </a><a href="/ha-mcp/docs-v2/contribute" class="px-3 py-1.5 rounded-lg text-sm transition-colors text-[var(--text-secondary)] hover:text-white hover:bg-white/[0.04]"> Contribute </a> <label class="theme-control ml-2"> <span class="theme-control-label">Theme</span> <select id="themeToggle" class="theme-toggle" aria-label="Theme: light or dark mode"> <option value="auto">Auto (OS)</option> <option value="light">Light</option> <option value="dark">Dark</option> </select> </label> <div class="relative"> <button id="a11yToggle" type="button" class="theme-toggle ml-1" aria-label="Accessibility settings" aria-haspopup="dialog" aria-expanded="false" title="Accessibility settings">Accessibility</button> <div id="a11yPanel" class="a11y-panel" role="dialog" aria-label="Accessibility settings" hidden> <section class="a11y-section"> <h3 class="a11y-section-title">Color scheme</h3> <div class="a11y-options" role="radiogroup" aria-label="Color scheme"> <label class="a11y-option"><input type="radio" name="a11y-theme" value="auto"> Auto</label> <label class="a11y-option"><input type="radio" name="a11y-theme" value="light"> Light</label> <label class="a11y-option"><input type="radio" name="a11y-theme" value="dark"> Dark</label> </div> </section> <section class="a11y-section"> <h3 class="a11y-section-title">Text size</h3> <div class="a11y-options" role="radiogroup" aria-label="Text size"> <label class="a11y-option"><input type="radio" name="a11y-font-size" value="100"> 100%</label> <label class="a11y-option"><input type="radio" name="a11y-font-size" value="115"> 115%</label> <label class="a11y-option"><input type="radio" name="a11y-font-size" value="130"> 130%</label> <label class="a11y-option"><input type="radio" name="a11y-font-size" value="150"> 150%</label> </div> </section> <section class="a11y-section"> <h3 class="a11y-section-title">Contrast</h3> <div class="a11y-options" role="radiogroup" aria-label="Contrast"> <label class="a11y-option"><input type="radio" name="a11y-contrast" value="normal"> Normal</label> <label class="a11y-option"><input type="radio" name="a11y-contrast" value="high"> High</label> </div> </section> <section class="a11y-section"> <h3 class="a11y-section-title">Light background shade</h3> <div class="a11y-options" role="radiogroup" aria-label="Light background shade"> <label class="a11y-option"><input type="radio" name="a11y-shade" value="off-white"> Off-white</label> <label class="a11y-option"><input type="radio" name="a11y-shade" value="paper"> Paper</label> <label class="a11y-option"><input type="radio" name="a11y-shade" value="pure"> Pure white</label> </div> </section> <button id="a11yReset" type="button" class="a11y-reset">Reset to defaults</button> </div> </div> </div> </div> </div> </nav> <div class="container mx-auto px-4 max-w-5xl"> <!-- Hero --> <header class="pt-20 pb-16 md:pt-28 md:pb-20 text-center fade-up"> <h1 class="font-display text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-6 tracking-tight leading-[1.1]">
+Home Assistant<br> <span class="text-brand">MCP Server</span> </h1> <p class="text-lg md:text-xl text-[var(--text-secondary)] max-w-2xl mx-auto mb-10 leading-relaxed">
+A Model Context Protocol server that enables AI assistants to interact with Home Assistant.
+        Control devices, query states, manage automations, and configure dashboards using natural language.
+</p> <div class="flex flex-wrap items-center justify-center gap-4 fade-up fade-up-delay-1"> <a href="/ha-mcp/docs-v2/setup" class="px-7 py-3 bg-brand hover:bg-brand-light text-surface-0 font-semibold rounded-xl transition-colors brand-glow">
+Get Started
+</a> <a href="https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fhomeassistant-ai%2Fha-mcp" target="_blank" rel="noopener" class="flex items-center" title="Add the ha-mcp add-on repository to your Home Assistant (HAOS)"> <img src="https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg" alt="Add ha-mcp add-on repository to your Home Assistant" height="40"> </a> <a href="https://github.com/homeassistant-ai/ha-mcp" class="px-7 py-3 bg-white/[0.05] hover:bg-white/[0.08] text-white font-semibold rounded-xl border border-white/[0.08] transition-colors">
+View on GitHub
+</a> </div> </header> <!-- Demo --> <div class="mb-24 max-w-4xl mx-auto fade-up fade-up-delay-2"> <div class="rounded-2xl overflow-hidden border border-white/[0.06] shadow-2xl shadow-black/40"> <img src="https://raw.githubusercontent.com/homeassistant-ai/ha-mcp/master/docs/img/demo.webp" alt="Demo with Claude Desktop" class="w-full" loading="lazy"> </div> </div> <!-- Quick Start --> <section class="mb-24 fade-up"> <div class="text-center mb-10"> <h2 class="font-display text-3xl md:text-4xl font-bold text-white mb-3 tracking-tight">Quick Start</h2> <p class="text-[var(--text-secondary)]">No paid subscription required. Copy-paste one command to install.</p> </div> <div class="grid md:grid-cols-3 gap-5 max-w-5xl mx-auto"> <!-- macOS --> <div class="glass-card rounded-2xl p-6"> <div class="flex items-center gap-3 mb-5"> <div class="w-10 h-10 rounded-xl bg-white/[0.05] flex items-center justify-center"> <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="inline-block text-[var(--text-secondary)]" aria-hidden="true">  <path d="M11.932 6.908c.95 0 2.727-1.291 4.595-1.1.782.032 2.976.316 4.388 2.38-.113.069-2.622 1.528-2.593 4.565.034 3.617 3.166 4.828 3.221 4.85-.029.086-.506 1.723-1.658 3.416-1.002 1.463-2.039 2.919-3.675 2.95-1.606.03-2.125-.955-3.96-.955s-2.409.923-3.931.984c-1.581.06-2.78-1.58-3.79-3.037-2.065-2.98-3.64-8.422-1.527-12.087 1.051-1.824 2.93-2.98 4.969-3.009 1.549-.032 3.011 1.043 3.96 1.043zM16.552 0c.153 1.407-.411 2.817-1.251 3.833-.837 1.013-2.214 1.804-3.555 1.7-.185-1.378.495-2.814 1.27-3.712C13.883.805 15.346.05 16.553 0z" fill="currentColor"/> </svg> </div> <div> <h3 class="font-display font-semibold text-white text-lg">macOS</h3> <p class="text-sm text-[var(--text-muted)]">Terminal</p> </div> </div> <ol class="text-[var(--text-secondary)] space-y-3 text-sm mb-5"> <li class="flex gap-2"><span class="text-[var(--text-muted)] tabular-nums">1.</span> Sign in to <a href="https://claude.ai" class="text-brand hover:underline">claude.ai</a></li> <li class="flex gap-2"><span class="text-[var(--text-muted)] tabular-nums">2.</span> Run in Terminal:</li> </ol> <pre class="bg-surface-0 p-3.5 rounded-xl text-sm overflow-x-auto mb-5 border border-white/[0.04]"><code class="text-brand">curl -LsSf https://raw.githubusercontent.com/homeassistant-ai/ha-mcp/master/scripts/install-macos.sh | sh</code></pre> <ol class="text-[var(--text-secondary)] space-y-2 text-sm" start="3"> <li class="flex gap-2"><span class="text-[var(--text-muted)] tabular-nums">3.</span> <a href="https://claude.ai/download" class="text-brand hover:underline">Download Claude Desktop</a></li> <li class="flex gap-2"><span class="text-[var(--text-muted)] tabular-nums">4.</span> Ask Claude: <em class="text-white/70">"Can you see my Home Assistant?"</em></li> </ol> </div> <!-- Linux --> <div class="glass-card rounded-2xl p-6"> <div class="flex items-center gap-3 mb-5"> <div class="w-10 h-10 rounded-xl bg-white/[0.05] flex items-center justify-center"> <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="inline-block text-[var(--text-secondary)]" aria-hidden="true">  <path d="M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.076 1.092-.3 1.953-1.05 3.02-.885 1.051-2.127 2.75-2.716 4.521-.278.832-.41 1.684-.287 2.489a.424.424 0 00-.11.135c-.26.268-.45.6-.663.839-.199.199-.485.267-.797.4-.313.136-.658.269-.864.68-.09.189-.136.394-.132.602 0 .199.027.4.055.536.058.399.116.728.04.97-.249.68-.28 1.145-.106 1.484.174.334.535.47.94.601.81.2 1.91.135 2.774.6.926.466 1.866.67 2.616.47.526-.116.97-.464 1.208-.946.587-.003 1.23-.269 2.26-.334.699-.058 1.574.267 2.577.2.025.134.063.198.114.333l.003.003c.391.778 1.113 1.132 1.884 1.071.771-.06 1.592-.536 2.257-1.306.631-.765 1.683-1.084 2.378-1.503.348-.199.629-.469.649-.853.023-.4-.2-.811-.714-1.376v-.097l-.003-.003c-.17-.2-.25-.535-.338-.926-.085-.401-.182-.786-.492-1.046h-.003c-.059-.054-.123-.067-.188-.135a.357.357 0 00-.19-.064c.431-1.278.264-2.55-.173-3.694-.533-1.41-1.465-2.638-2.175-3.483-.796-1.005-1.576-1.957-1.56-3.368.026-2.152.236-6.133-3.544-6.139zm.529 3.405h.013c.213 0 .396.062.584.198.19.135.33.332.438.533.105.259.158.459.166.724 0-.02.006-.04.006-.06v.105a.086.086 0 01-.004-.021l-.004-.024a1.807 1.807 0 01-.15.706.953.953 0 01-.213.335.71.71 0 00-.088-.042c-.104-.045-.198-.064-.284-.133a1.312 1.312 0 00-.22-.066c.05-.06.146-.133.183-.198.053-.128.082-.264.088-.402v-.02a1.21 1.21 0 00-.061-.4c-.045-.134-.101-.2-.183-.333-.084-.066-.167-.132-.267-.132h-.016c-.093 0-.176.03-.262.132a.8.8 0 00-.205.334 1.18 1.18 0 00-.09.4v.019c.002.089.008.179.02.267-.193-.067-.438-.135-.607-.202a1.635 1.635 0 01-.018-.2v-.02a1.772 1.772 0 01.15-.768c.082-.22.232-.406.43-.533a.985.985 0 01.594-.2zm-2.962.059h.036c.142 0 .27.048.399.135.146.129.264.288.344.465.09.199.14.4.153.667v.004c.007.134.006.2-.002.266v.08c-.03.007-.056.018-.083.024-.152.055-.274.135-.393.2.012-.09.013-.18.003-.267v-.015c-.012-.133-.04-.2-.082-.333a.613.613 0 00-.166-.267.248.248 0 00-.183-.064h-.021c-.071.006-.13.04-.186.132a.552.552 0 00-.12.27.944.944 0 00-.023.33v.015c.012.135.037.2.08.334.046.134.098.2.166.268.01.009.02.018.034.024-.07.057-.117.07-.176.136a.304.304 0 01-.131.068 2.62 2.62 0 01-.275-.402 1.772 1.772 0 01-.155-.667 1.759 1.759 0 01.08-.668 1.43 1.43 0 01.283-.535c.128-.133.26-.2.418-.2zm1.37 1.706c.332 0 .733.065 1.216.399.293.2.523.269 1.052.468h.003c.255.136.405.266.478.399v-.131a.571.571 0 01.016.47c-.123.31-.516.643-1.063.842v.002c-.268.135-.501.333-.775.465-.276.135-.588.292-1.012.267a1.139 1.139 0 01-.448-.067 3.566 3.566 0 01-.322-.198c-.195-.135-.363-.332-.612-.465v-.005h-.005c-.4-.246-.616-.512-.686-.71-.07-.268-.005-.47.193-.6.224-.135.38-.271.483-.336.104-.074.143-.102.176-.131h.002v-.003c.169-.202.436-.47.839-.601.139-.036.294-.065.466-.065zm2.8 2.142c.358 1.417 1.196 3.475 1.735 4.473.286.534.855 1.659 1.102 3.024.156-.005.33.018.513.064.646-1.671-.546-3.467-1.089-3.966-.22-.2-.232-.335-.123-.335.59.534 1.365 1.572 1.646 2.757.13.535.16 1.104.021 1.67.067.028.135.06.205.067 1.032.534 1.413.938 1.23 1.537v-.043c-.06-.003-.12 0-.18 0h-.016c.151-.467-.182-.825-1.065-1.224-.915-.4-1.646-.336-1.77.465-.008.043-.013.066-.018.135-.068.023-.139.053-.209.064-.43.268-.662.669-.793 1.187-.13.533-.17 1.156-.205 1.869v.003c-.02.334-.17.838-.319 1.35-1.5 1.072-3.58 1.538-5.348.334a2.645 2.645 0 00-.402-.533 1.45 1.45 0 00-.275-.333c.182 0 .338-.03.465-.067a.615.615 0 00.314-.334c.108-.267 0-.697-.345-1.163-.345-.467-.931-.995-1.788-1.521-.63-.4-.986-.87-1.15-1.396-.165-.534-.143-1.085-.015-1.645.245-1.07.873-2.11 1.274-2.763.107-.065.037.135-.408.974-.396.751-1.14 2.497-.122 3.854a8.123 8.123 0 01.647-2.876c.564-1.278 1.743-3.504 1.836-5.268.048.036.217.135.289.202.218.133.38.333.59.465.21.201.477.335.876.335.039.003.075.006.11.006.412 0 .73-.134.997-.268.29-.134.52-.334.74-.4h.005c.467-.135.835-.402 1.044-.7zm2.185 8.958c.037.6.343 1.245.882 1.377.588.134 1.434-.333 1.791-.765l.211-.01c.315-.007.577.01.847.268l.003.003c.208.199.305.53.391.876.085.4.154.78.409 1.066.486.527.645.906.636 1.14l.003-.007v.018l-.003-.012c-.015.262-.185.396-.498.595-.63.401-1.746.712-2.457 1.57-.618.737-1.37 1.14-2.036 1.191-.664.053-1.237-.2-1.574-.898l-.005-.003c-.21-.4-.12-1.025.056-1.69.176-.668.428-1.344.463-1.897.037-.714.076-1.335.195-1.814.12-.465.308-.797.641-.984l.045-.022zm-10.814.049h.01c.053 0 .105.005.157.014.376.055.706.333 1.023.752l.91 1.664.003.003c.243.533.754 1.064 1.189 1.637.434.598.77 1.131.729 1.57v.006c-.057.744-.48 1.148-1.125 1.294-.645.135-1.52.002-2.395-.464-.968-.536-2.118-.469-2.857-.602-.369-.066-.61-.2-.723-.4-.11-.2-.113-.602.123-1.23v-.004l.002-.003c.117-.334.03-.752-.027-1.118-.055-.401-.083-.71.043-.94.16-.334.396-.4.69-.533.294-.135.64-.202.915-.47h.002v-.002c.256-.268.445-.601.668-.838.19-.201.38-.336.663-.336zm7.159-9.074c-.435.201-.945.535-1.488.535-.542 0-.97-.267-1.28-.466-.154-.134-.28-.268-.373-.335-.164-.134-.144-.333-.074-.333.109.016.129.134.199.2.096.066.215.2.36.333.292.2.68.467 1.167.467.485 0 1.053-.267 1.398-.466.195-.135.445-.334.648-.467.156-.136.149-.267.279-.267.128.016.034.134-.147.332a8.097 8.097 0 01-.69.468zm-1.082-1.583V5.64c-.006-.02.013-.042.029-.05.074-.043.18-.027.26.004.063 0 .16.067.15.135-.006.049-.085.066-.135.066-.055 0-.092-.043-.141-.068-.052-.018-.146-.008-.163-.065zm-.551 0c-.02.058-.113.049-.166.066-.047.025-.086.068-.14.068-.05 0-.13-.02-.136-.068-.01-.066.088-.133.15-.133.08-.031.184-.047.259-.005.019.009.036.03.03.05v.02h.003z" fill="currentColor"/> </svg> </div> <div> <h3 class="font-display font-semibold text-white text-lg">Linux</h3> <p class="text-sm text-[var(--text-muted)]">Terminal</p> </div> </div> <ol class="text-[var(--text-secondary)] space-y-3 text-sm mb-5"> <li class="flex gap-2"><span class="text-[var(--text-muted)] tabular-nums">1.</span> Sign in to <a href="https://claude.ai" class="text-brand hover:underline">claude.ai</a></li> <li class="flex gap-2"><span class="text-[var(--text-muted)] tabular-nums">2.</span> Run in Terminal:</li> </ol> <pre class="bg-surface-0 p-3.5 rounded-xl text-sm overflow-x-auto mb-5 border border-white/[0.04]"><code class="text-brand">curl -LsSf https://raw.githubusercontent.com/homeassistant-ai/ha-mcp/master/scripts/install-linux.sh | sh</code></pre> <ol class="text-[var(--text-secondary)] space-y-2 text-sm" start="3"> <li class="flex gap-2"><span class="text-[var(--text-muted)] tabular-nums">3.</span> Install the community <a href="https://github.com/aaddrick/claude-desktop-debian" class="text-brand hover:underline">Claude Desktop for Linux</a> build</li> <li class="flex gap-2"><span class="text-[var(--text-muted)] tabular-nums">4.</span> Ask Claude: <em class="text-white/70">"Can you see my Home Assistant?"</em></li> </ol> <p class="text-[var(--text-muted)] text-xs mt-4">Prefer the official CLI? <a href="/ha-mcp/docs-v2/guide-linux" class="text-brand hover:underline">Claude Code setup &rarr;</a></p> </div> <!-- Windows --> <div class="glass-card rounded-2xl p-6"> <div class="flex items-center gap-3 mb-5"> <div class="w-10 h-10 rounded-xl bg-white/[0.05] flex items-center justify-center"> <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="inline-block text-[var(--text-secondary)]" aria-hidden="true">  <path d="M11.49 2H2v9.492h9.492V2h-.002z" fill="currentColor"/><path d="M22 2h-9.492v9.492H22V2z" fill="currentColor"/><path d="M11.49 12.508H2V22h9.492v-9.492h-.002z" fill="currentColor"/><path d="M22 12.508h-9.492V22H22v-9.492z" fill="currentColor"/> </svg> </div> <div> <h3 class="font-display font-semibold text-white text-lg">Windows</h3> <p class="text-sm text-[var(--text-muted)]">PowerShell</p> </div> </div> <ol class="text-[var(--text-secondary)] space-y-3 text-sm mb-5"> <li class="flex gap-2"><span class="text-[var(--text-muted)] tabular-nums">1.</span> Sign in to <a href="https://claude.ai" class="text-brand hover:underline">claude.ai</a></li> <li class="flex gap-2"><span class="text-[var(--text-muted)] tabular-nums">2.</span> Run in PowerShell:</li> </ol> <pre class="bg-surface-0 p-3.5 rounded-xl text-sm overflow-x-auto mb-5 border border-white/[0.04]"><code class="text-brand">irm https://raw.githubusercontent.com/homeassistant-ai/ha-mcp/master/scripts/install-windows.ps1 | iex</code></pre> <ol class="text-[var(--text-secondary)] space-y-2 text-sm" start="3"> <li class="flex gap-2"><span class="text-[var(--text-muted)] tabular-nums">3.</span> <a href="https://claude.ai/download" class="text-brand hover:underline">Download Claude Desktop</a></li> <li class="flex gap-2"><span class="text-[var(--text-muted)] tabular-nums">4.</span> Ask Claude: <em class="text-white/70">"Can you see my Home Assistant?"</em></li> </ol> </div> </div> <p class="text-center mt-6 text-[var(--text-muted)] text-sm">
+Need more options? <a href="/ha-mcp/docs-v2/setup" class="text-brand hover:underline">Use the Setup Wizard</a> </p> </section> <!-- Examples --> <section class="mb-24"> <div class="text-center mb-10"> <h2 class="font-display text-3xl md:text-4xl font-bold text-white mb-3 tracking-tight">What Can You Do With It?</h2> <p class="text-[var(--text-secondary)]">Just talk to your AI assistant naturally. Here are some examples:</p> </div> <div class="grid md:grid-cols-2 gap-4 max-w-4xl mx-auto"> <div class="glass-card rounded-xl p-5 group"> <p class="text-white font-medium mb-2 leading-snug">"Create an automation that turns on the porch light at sunset"</p> <p class="text-[var(--text-muted)] text-sm">Creates the automation with proper triggers and actions</p> </div><div class="glass-card rounded-xl p-5 group"> <p class="text-white font-medium mb-2 leading-snug">"Add a weather card to my dashboard"</p> <p class="text-[var(--text-muted)] text-sm">Updates your Lovelace dashboard with the new card</p> </div><div class="glass-card rounded-xl p-5 group"> <p class="text-white font-medium mb-2 leading-snug">"The motion sensor automation isn&#39;t working, debug it"</p> <p class="text-[var(--text-muted)] text-sm">Analyzes execution traces, identifies the issue, suggests fixes</p> </div><div class="glass-card rounded-xl p-5 group"> <p class="text-white font-medium mb-2 leading-snug">"Create a script that sets movie mode: dim lights, close blinds, turn on TV"</p> <p class="text-[var(--text-muted)] text-sm">Creates a reusable script with the sequence of actions</p> </div> </div> </section> <!-- Features --> <section class="mb-24"> <div class="text-center mb-10"> <h2 class="font-display text-3xl md:text-4xl font-bold text-white mb-3 tracking-tight">Features</h2> <p class="text-[var(--text-secondary)]">92+ tools across 6 categories.</p> </div> <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto"> <div class="glass-card rounded-xl p-5"> <div class="w-9 h-9 rounded-lg bg-brand/[0.08] flex items-center justify-center mb-4"> <svg width="18" height="18" viewBox="0 0 24 24" fill="none" class="inline-block text-brand" aria-hidden="true">  <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="m21 21-4.35-4.35" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/> </svg> </div> <h3 class="font-display font-semibold text-white mb-1.5">Search</h3> <p class="text-[var(--text-muted)] text-sm leading-relaxed">Fuzzy entity search, deep config search, full system overview</p> </div><div class="glass-card rounded-xl p-5"> <div class="w-9 h-9 rounded-lg bg-brand/[0.08] flex items-center justify-center mb-4"> <svg width="18" height="18" viewBox="0 0 24 24" fill="none" class="inline-block text-brand" aria-hidden="true">  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/> </svg> </div> <h3 class="font-display font-semibold text-white mb-1.5">Control</h3> <p class="text-[var(--text-muted)] text-sm leading-relaxed">Any service call, bulk device operations, real-time state tracking</p> </div><div class="glass-card rounded-xl p-5"> <div class="w-9 h-9 rounded-lg bg-brand/[0.08] flex items-center justify-center mb-4"> <svg width="18" height="18" viewBox="0 0 24 24" fill="none" class="inline-block text-brand" aria-hidden="true">  <rect x="3" y="3" width="7" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="2"/> </svg> </div> <h3 class="font-display font-semibold text-white mb-1.5">Manage</h3> <p class="text-[var(--text-muted)] text-sm leading-relaxed">Automations, scripts, helpers, dashboards, areas, zones, groups</p> </div><div class="glass-card rounded-xl p-5"> <div class="w-9 h-9 rounded-lg bg-brand/[0.08] flex items-center justify-center mb-4"> <svg width="18" height="18" viewBox="0 0 24 24" fill="none" class="inline-block text-brand" aria-hidden="true">  <path d="M3 3v18h18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="m19 9-5 5-4-4-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/> </svg> </div> <h3 class="font-display font-semibold text-white mb-1.5">Monitor</h3> <p class="text-[var(--text-muted)] text-sm leading-relaxed">History, statistics, camera snapshots, automation traces</p> </div><div class="glass-card rounded-xl p-5"> <div class="w-9 h-9 rounded-lg bg-brand/[0.08] flex items-center justify-center mb-4"> <svg width="18" height="18" viewBox="0 0 24 24" fill="none" class="inline-block text-brand" aria-hidden="true">  <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/> </svg> </div> <h3 class="font-display font-semibold text-white mb-1.5">System</h3> <p class="text-[var(--text-muted)] text-sm leading-relaxed">Backup and restore, updates, add-ons, device registry</p> </div><div class="glass-card rounded-xl p-5"> <div class="w-9 h-9 rounded-lg bg-brand/[0.08] flex items-center justify-center mb-4"> <svg width="18" height="18" viewBox="0 0 24 24" fill="none" class="inline-block text-brand" aria-hidden="true">  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/> </svg> </div> <h3 class="font-display font-semibold text-white mb-1.5">Flexible</h3> <p class="text-[var(--text-muted)] text-sm leading-relaxed">Works with Claude, ChatGPT, Cursor, Copilot, and 15+ AI clients</p> </div> </div> </section> <!-- CTA --> <section class="mb-20"> <div class="text-center rounded-2xl p-12 md:p-16 glass-card relative overflow-hidden"> <div class="absolute inset-0 bg-gradient-to-br from-brand/[0.04] to-transparent pointer-events-none"></div> <div class="relative"> <h2 class="font-display text-3xl md:text-4xl font-bold text-white mb-4 tracking-tight">Ready to Get Started?</h2> <p class="text-[var(--text-secondary)] mb-8 max-w-md mx-auto">Set up ha-mcp with your AI assistant in minutes.</p> <a href="/ha-mcp/docs-v2/setup" class="inline-block px-8 py-3.5 bg-brand hover:bg-brand-light text-surface-0 font-semibold rounded-xl transition-colors brand-glow">
+Open Setup Wizard
+</a> </div> </div> </section> <!-- Footer --> <footer class="pb-12 text-center text-sm border-t border-white/[0.06] pt-8"> <div class="flex flex-wrap justify-center gap-x-6 gap-y-2 mb-4"> <a href="https://github.com/homeassistant-ai/ha-mcp" class="text-[var(--text-muted)] hover:text-white transition-colors">GitHub</a> <a href="https://github.com/homeassistant-ai/ha-mcp/issues" class="text-[var(--text-muted)] hover:text-white transition-colors">Issues</a> <a href="/ha-mcp/docs-v2/tools" class="text-[var(--text-muted)] hover:text-white transition-colors">Tools</a> <a href="/ha-mcp/docs-v2/faq" class="text-[var(--text-muted)] hover:text-white transition-colors">FAQ</a> <a href="/ha-mcp/docs-v2/contribute" class="text-[var(--text-muted)] hover:text-white transition-colors">Contribute</a> </div> <div class="flex flex-wrap justify-center gap-2 mb-4"> <img src="https://img.shields.io/github/v/release/homeassistant-ai/ha-mcp" alt="Release" class="h-5" loading="lazy"> <img src="https://img.shields.io/github/actions/workflow/status/homeassistant-ai/ha-mcp/e2e-tests.yml?branch=master&label=E2E%20Tests" alt="E2E Tests" class="h-5" loading="lazy"> <img src="https://img.shields.io/github/license/homeassistant-ai/ha-mcp.svg" alt="License" class="h-5" loading="lazy"> </div> <p class="text-[var(--text-muted)]">Built with FastMCP · <a href="/ha-mcp/docs-v2/LICENSES-THIRD-PARTY.md" class="hover:text-white transition-colors">Third-party licenses</a></p> </footer> </div>  <script data-purpose="theme-toggle">
+      // #1572 accessibility-prefs binding for docs site — bidirectional sync
+      // between the Nav header theme <select>, the Nav A11y popover radios,
+      // and the underlying localStorage / <html> attributes. The Layout head
+      // anti-FOUC script already set the initial attributes; this module
+      // keeps them in sync for the rest of the session and persists user
+      // changes. Mirrors src/ha_mcp/settings.js bindAccessibilityPrefs so
+      // both surfaces behave identically.
+      (function bindAccessibilityPrefs() {
+        const root = document.documentElement;
+        const mql = window.matchMedia('(prefers-color-scheme: light)');
+        const PREFS = {
+          theme:    { key: 'ha-mcp-theme',     default: 'auto'      },
+          fontSize: { key: 'ha-mcp-font-size', default: '100'       },
+          contrast: { key: 'ha-mcp-contrast',  default: 'normal'    },
+          shade:    { key: 'ha-mcp-shade',     default: 'off-white' },
+        };
+        const read = (p) => {
+          try { return localStorage.getItem(PREFS[p].key) || PREFS[p].default; }
+          catch (_) { return PREFS[p].default; }
+        };
+        const write = (p, v) => {
+          try { localStorage.setItem(PREFS[p].key, v); } catch (_) { /* private mode */ }
+        };
+
+        const applyTheme = (pref) => {
+          const resolved = pref === 'auto' ? (mql.matches ? 'light' : 'dark') : pref;
+          root.setAttribute('data-theme', resolved);
+        };
+        const applyFontSize = (pct) => {
+          const n = parseInt(pct, 10);
+          if (isNaN(n) || n <= 100 || n > 150) root.style.fontSize = '';
+          else root.style.fontSize = (16 * n / 100) + 'px';
+        };
+        const applyContrast = (tier) => {
+          if (tier === 'high') root.setAttribute('data-contrast', 'high');
+          else root.removeAttribute('data-contrast');
+        };
+        const applyShade = (shade) => {
+          if (shade && shade !== 'off-white') root.setAttribute('data-shade', shade);
+          else root.removeAttribute('data-shade');
+        };
+        const APPLY = { theme: applyTheme, fontSize: applyFontSize, contrast: applyContrast, shade: applyShade };
+
+        const reflectRadio = (name, value) => {
+          document.querySelectorAll('input[type="radio"][name="' + name + '"]').forEach((r) => {
+            r.checked = (r.value === value);
+          });
+        };
+        const setPref = (pref, value) => { write(pref, value); APPLY[pref](value); };
+
+        const RADIO_TO_PREF = {
+          'a11y-theme':     'theme',
+          'a11y-font-size': 'fontSize',
+          'a11y-contrast':  'contrast',
+          'a11y-shade':     'shade',
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+          const headerToggle = document.getElementById('themeToggle');
+          if (headerToggle) {
+            headerToggle.value = read('theme');
+            headerToggle.addEventListener('change', () => {
+              setPref('theme', headerToggle.value);
+              reflectRadio('a11y-theme', headerToggle.value);
+            });
+          }
+
+          // Initialize Accessibility popover radios from localStorage.
+          for (const [name, pref] of Object.entries(RADIO_TO_PREF)) {
+            reflectRadio(name, read(pref));
+          }
+
+          const a11yToggle = document.getElementById('a11yToggle');
+          const a11yPanel = document.getElementById('a11yPanel');
+
+          // Scope the change listener to the Accessibility popover rather
+          // than the document — only the a11y radios live inside it, so a
+          // document-level listener would just fire and bail on every other
+          // input on the page.
+          if (a11yPanel) {
+            a11yPanel.addEventListener('change', (e) => {
+              const t = e.target;
+              if (!(t instanceof HTMLInputElement) || t.type !== 'radio') return;
+              const pref = RADIO_TO_PREF[t.name];
+              if (!pref) return;
+              setPref(pref, t.value);
+              if (pref === 'theme' && headerToggle) headerToggle.value = t.value;
+            });
+          }
+
+          // Popover open/close behavior. ESC and outside-click dismiss; the
+          // toggle button flips aria-expanded so screen readers announce the
+          // dialog open/close state.
+          if (a11yToggle && a11yPanel) {
+            const openPanel = () => {
+              a11yPanel.hidden = false;
+              a11yToggle.setAttribute('aria-expanded', 'true');
+            };
+            const closePanel = () => {
+              a11yPanel.hidden = true;
+              a11yToggle.setAttribute('aria-expanded', 'false');
+            };
+            a11yToggle.addEventListener('click', () => {
+              a11yPanel.hidden ? openPanel() : closePanel();
+            });
+            document.addEventListener('click', (e) => {
+              if (a11yPanel.hidden) return;
+              if (a11yPanel.contains(e.target) || a11yToggle.contains(e.target)) return;
+              closePanel();
+            });
+            document.addEventListener('keydown', (e) => {
+              if (e.key === 'Escape' && !a11yPanel.hidden) {
+                closePanel();
+                a11yToggle.focus();
+              }
+            });
+            const resetBtn = document.getElementById('a11yReset');
+            if (resetBtn) {
+              resetBtn.addEventListener('click', () => {
+                for (const [name, pref] of Object.entries(RADIO_TO_PREF)) {
+                  setPref(pref, PREFS[pref].default);
+                  reflectRadio(name, PREFS[pref].default);
+                }
+                if (headerToggle) headerToggle.value = PREFS.theme.default;
+              });
+            }
+          }
+        });
+
+        mql.addEventListener('change', () => {
+          if (read('theme') === 'auto') applyTheme('auto');
+        });
+      })();
+    </script> <script type="module">(function(){const n='width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"',a=`<svg ${n}><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`,i=`<svg ${n}><path d="M20 6L9 17l-5-5"/></svg>`;async function r(o){if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(o);else{const e=document.createElement("textarea");e.value=o,e.style.cssText="position:fixed;opacity:0",document.body.appendChild(e),e.select(),document.execCommand("copy"),e.remove()}}window.initCopyButtons=function(){document.querySelectorAll("pre").forEach(o=>{if(o.parentElement?.classList.contains("pre-wrapper"))return;const e=document.createElement("div");e.className="pre-wrapper",o.parentNode.insertBefore(e,o),e.appendChild(o);const t=document.createElement("button");t.type="button",t.className="copy-btn",t.setAttribute("aria-label","Copy to clipboard"),t.innerHTML=a,t.addEventListener("click",async()=>{const c=((o.querySelector("code")||o).textContent?.trim()??"").replace(/^[\$>]\s/gm,"");try{await r(c),t.innerHTML=i,t.setAttribute("aria-label","Copied"),setTimeout(()=>{t.innerHTML=a,t.setAttribute("aria-label","Copy to clipboard")},1500)}catch{t.setAttribute("aria-label","Copy failed"),setTimeout(()=>t.setAttribute("aria-label","Copy to clipboard"),2e3)}}),e.appendChild(t)})},document.addEventListener("DOMContentLoaded",window.initCopyButtons)})();</script> </body> </html>

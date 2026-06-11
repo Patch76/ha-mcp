@@ -38,46 +38,51 @@
 <body>
 <div class="container">
   <h1>ha-mcp — accessibility &amp; theme preview</h1>
-  <p>Visual snapshot for <a href="https://github.com/homeassistant-ai/ha-mcp/pull/1574">PR #1574</a> (closes <a href="https://github.com/homeassistant-ai/ha-mcp/issues/1572">issue #1572</a>).</p>
-  <p><strong>Dark stays the default.</strong> Use the <code>Theme</code> select in the header
-    or the <strong>Accessibility</strong> button (docs) / tab (settings) to switch — the
-    menu now has one-click presets (Dark, Light, Auto, Paper, Gray, High Contrast),
-    text size, and custom Background / Text / Accent color pickers.</p>
+  <p>Visual comparison for <a href="https://github.com/homeassistant-ai/ha-mcp/pull/1574">PR #1574</a> (closes <a href="https://github.com/homeassistant-ai/ha-mcp/issues/1572">issue #1572</a>):
+    three states of both surfaces, side by side.</p>
 
-  <h2>Two surfaces to look at</h2>
-
+  <h2>V1 — stable (what's shipped today)</h2>
   <div class="card">
-    <h3>Settings UI snapshot</h3>
-    <p>Static sample of the real settings page (tabs, status badges, notices, buttons,
-      diff colors) with the new Accessibility tab. The theme select sits top-right;
-      the presets and custom colors live in the Accessibility tab.</p>
-    <a class="preview-link" href="./settings-preview.html">Open settings UI preview →</a>
+    <h3>Dark-only, no theme or accessibility controls</h3>
+    <p>The current production look, built from upstream master. Baseline for the comparison.</p>
+    <a class="preview-link" href="./docs-v1/index.html">Docs (stable) →</a>
+    &nbsp;<a class="preview-link" href="./settings-preview-v1.html">Settings UI (stable) →</a>
   </div>
 
+  <h2>V2 — first round</h2>
   <div class="card">
-    <h3>Docs site (full Astro build)</h3>
-    <p>The real homepage / setup / FAQ / guides, built from the PR branch. The
-      Accessibility button in the nav opens the same preset / custom-color panel.</p>
-    <a class="preview-link" href="./docs/index.html">Open docs site preview →</a>
+    <h3>Light scheme + labeled Theme select + Accessibility panel with radio groups</h3>
+    <p>Adds the light palette and a panel with four separate radio groups
+      (color scheme, text size, contrast, light background shade). Auto was the default.</p>
+    <a class="preview-link" href="./docs-v2/index.html">Docs (V2) →</a>
+    &nbsp;<a class="preview-link" href="./settings-preview-v2.html">Settings UI (V2) →</a>
   </div>
 
-  <h2>What to check</h2>
+  <h2>V3 — current (what the PR proposes)</h2>
+  <div class="card">
+    <h3>One-click presets + custom colors, dark default</h3>
+    <p>The radio groups collapse into Reader-View-style presets (Dark, Light, Auto, Paper,
+      Gray, High Contrast) with miniature scheme swatches, plus Background / Text / Accent
+      color pickers with a contrast warning. <strong>Dark stays the default</strong> — use the
+      Theme select or the Accessibility panel to switch. Notices use the new neutral-text
+      callout style.</p>
+    <a class="preview-link" href="./docs/index.html">Docs (V3) →</a>
+    &nbsp;<a class="preview-link" href="./settings-preview.html">Settings UI (V3) →</a>
+  </div>
+
+  <h2>What to compare</h2>
   <ul>
-    <li>Presets: each chip shows a miniature swatch of its scheme — Paper (warm),
-      Gray (mid-gray background), High Contrast (light, pure white, strengthened text).</li>
-    <li>Custom colors: pick any Background / Text / Accent — a warning appears when the
-      background/text pair drops under a 4.5:1 contrast ratio. "Clear custom colors" undoes it.</li>
-    <li>Notices (restart / readonly / pin in the settings preview): message text is now
-      neutral; the color moved to the left border and a soft tint — this replaces the
-      earlier red-on-pink and blue-on-blue rendering.</li>
-    <li>Status badges and diff colors on a light surface — readable, not muddy.</li>
-    <li>Text size scaling (100–150%) pulls the whole layout along.</li>
+    <li>V1 → V3: overall readability of the light scheme vs the dark-only baseline.</li>
+    <li>V2 → V3: the accessibility menu itself — four radio groups vs one preset row + custom pickers.</li>
+    <li>Notices in the settings previews: V2 shows the earlier red-on-pink / blue-on-blue rendering;
+      V3 the neutral-text version with the colored left border.</li>
+    <li>V3 custom colors: any Background / Text pair under a 4.5:1 contrast ratio triggers a warning.</li>
   </ul>
 
   <h2>Note</h2>
-  <p style="font-size:0.85rem;color:var(--text-secondary)">This is a static snapshot — no live backend, no system access, just HTML + CSS + a little
-    localStorage-backed JS served from a static host. Preferences you set here are stored only in
-    your browser, separately per site. Feedback welcome on the PR thread.</p>
+  <p style="font-size:0.85rem;color:var(--text-secondary)">Static snapshots — no live backend, just HTML + CSS + localStorage-backed JS.
+    All three versions share the same localStorage keys on this host, so a theme chosen in V2/V3
+    carries over between the previews here; "Reset to defaults" clears it. Feedback welcome on the PR thread.</p>
 </div>
 </body>
 </html>
