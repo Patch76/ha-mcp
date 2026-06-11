@@ -37,35 +37,47 @@
 </head>
 <body>
 <div class="container">
-  <h1>ha-mcp — light color-scheme preview</h1>
+  <h1>ha-mcp — accessibility &amp; theme preview</h1>
   <p>Visual snapshot for <a href="https://github.com/homeassistant-ai/ha-mcp/pull/1574">PR #1574</a> (closes <a href="https://github.com/homeassistant-ai/ha-mcp/issues/1572">issue #1572</a>).</p>
-  <p>The PR adds <code>@media (prefers-color-scheme: light)</code> support to the two CSS surfaces that are currently dark-only. If your OS / browser is set to light, both should now render with the new palette.</p>
+  <p><strong>Dark stays the default.</strong> Use the <code>Theme</code> select in the header
+    or the <strong>Accessibility</strong> button (docs) / tab (settings) to switch — the
+    menu now has one-click presets (Dark, Light, Auto, Paper, Gray, High Contrast),
+    text size, and custom Background / Text / Accent color pickers.</p>
 
   <h2>Two surfaces to look at</h2>
 
   <div class="card">
     <h3>Settings UI snapshot</h3>
-    <p>Sample of the markup (tabs, status badges, notices, buttons, diff colors). Includes a small toggle in the corner so you can compare Auto / Force Light / Force Dark regardless of your OS preference.</p>
+    <p>Static sample of the real settings page (tabs, status badges, notices, buttons,
+      diff colors) with the new Accessibility tab. The theme select sits top-right;
+      the presets and custom colors live in the Accessibility tab.</p>
     <a class="preview-link" href="./settings-preview.html">Open settings UI preview →</a>
   </div>
 
   <div class="card">
     <h3>Docs site (full Astro build)</h3>
-    <p>The real homepage / setup / FAQ / guides, built from the PR branch. Browse around — every page respects the new palette.</p>
+    <p>The real homepage / setup / FAQ / guides, built from the PR branch. The
+      Accessibility button in the nav opens the same preset / custom-color panel.</p>
     <a class="preview-link" href="./docs/index.html">Open docs site preview →</a>
   </div>
 
   <h2>What to check</h2>
   <ul>
-    <li>Body text remains comfortably readable on both backgrounds.</li>
-    <li>Status badges (readonly / destructive / mandatory) — the colored text still reads clearly on the pale pill backgrounds.</li>
-    <li>Notices (restart, readonly, pin) — the message text is legible against the tinted backgrounds.</li>
-    <li>Diff colors (red / green / blue) on a light surface — distinguishable, not muddy.</li>
-    <li>Docs: links and the "MCP Server" headline use a darker brand teal in light mode so they stay readable.</li>
+    <li>Presets: each chip shows a miniature swatch of its scheme — Paper (warm),
+      Gray (mid-gray background), High Contrast (light, pure white, strengthened text).</li>
+    <li>Custom colors: pick any Background / Text / Accent — a warning appears when the
+      background/text pair drops under a 4.5:1 contrast ratio. "Clear custom colors" undoes it.</li>
+    <li>Notices (restart / readonly / pin in the settings preview): message text is now
+      neutral; the color moved to the left border and a soft tint — this replaces the
+      earlier red-on-pink and blue-on-blue rendering.</li>
+    <li>Status badges and diff colors on a light surface — readable, not muddy.</li>
+    <li>Text size scaling (100–150%) pulls the whole layout along.</li>
   </ul>
 
   <h2>Note</h2>
-  <p style="font-size:0.85rem;color:var(--text-secondary)">This is a static snapshot of the proposed CSS — no live backend, no system access, just HTML + CSS served from a static host. Feedback welcome on the PR thread.</p>
+  <p style="font-size:0.85rem;color:var(--text-secondary)">This is a static snapshot — no live backend, no system access, just HTML + CSS + a little
+    localStorage-backed JS served from a static host. Preferences you set here are stored only in
+    your browser, separately per site. Feedback welcome on the PR thread.</p>
 </div>
 </body>
 </html>
