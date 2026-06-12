@@ -2,20 +2,21 @@
       // #1572 accessibility-pref resolver — runs before CSS evaluates so
       // data-theme / data-contrast / data-shade and the root font-size are
       // set on <html> ahead of paint (no FOUC, no jump). Reads saved choices
-      // from localStorage with safe defaults. Dark is the default (#1574
-      // review: existing users rely on the current look); "auto" is opt-in
-      // and resolves via prefers-color-scheme.
-      // Duplicate of the same logic in src/ha_mcp/settings_ui.py head — both
-      // surfaces share the localStorage keys, so any change here must be
-      // mirrored there (and vice versa) or one surface paints with the wrong
-      // attributes. Enforced by tests/src/unit/test_anti_fouc_parity.py.
+      // from localStorage with safe defaults. Auto is the default (#1574
+      // review: follow the OS preference out of the box); Dark stays one
+      // click away as a preset.
+      // Same logic as in src/ha_mcp/settings_ui.py head — both surfaces use
+      // the same localStorage key names interpreted identically, but storage
+      // is per-origin, so each surface keeps its own saved values. Any change
+      // here must be mirrored there (and vice versa) or the surfaces drift
+      // apart. Enforced by tests/src/unit/test_anti_fouc_parity.py.
       (function () {
         var root = document.documentElement;
         function readPref(key, fallback) {
           try { return localStorage.getItem(key) || fallback; } catch (e) { return fallback; }
         }
         try {
-          var themePref = readPref('ha-mcp-theme', 'dark');
+          var themePref = readPref('ha-mcp-theme', 'auto');
           var theme = themePref === 'auto'
             ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
             : themePref;
@@ -62,14 +63,25 @@
                 root.style.setProperty('--brand', channels(custom.accent));
               }
             }
-          } catch (e2) { /* ignore malformed custom colors */ }
+          } catch (e2) {
+            // Corrupted custom-colors JSON would re-fail on every load; drop
+            // it so the next visit starts clean instead of wedged.
+            try { localStorage.removeItem('ha-mcp-custom-colors'); } catch (e3) { /* storage blocked */ }
+          }
         } catch (e) {
+          // localStorage is already guarded inside readPref — this catch
+          // guards everything else (matchMedia, attribute writes). Warn so a
+          // shipped bug here is visible in the console instead of hiding
+          // behind the silent dark fallback.
+          console.warn('ha-mcp accessibility prefs failed to apply:', e);
           root.setAttribute('data-theme', 'dark');
         }
       })();
     </script><!-- Cloudflare Web Analytics --><script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon="{&quot;token&quot;: &quot;65196c0f415f4f3690e13ad77fa44cb0&quot;}"></script><link rel="stylesheet" href="/ha-mcp/docs/_astro/Nav.7lP8MFu6.css">
 <style>.guide-step[data-astro-cid-pkqywead]{border-radius:.75rem;border-width:1px;border-color:rgb(var(--tw-slate-700, 51 65 85) / .5);background-color:rgb(var(--tw-slate-800, 30 41 59) / .3);padding:1.5rem}.step-header[data-astro-cid-pkqywead]{margin-bottom:1rem;display:flex;align-items:center;gap:.75rem}.step-number[data-astro-cid-pkqywead]{display:flex;height:2rem;width:2rem;flex-shrink:0;align-items:center;justify-content:center;border-radius:9999px;--tw-bg-opacity: 1;background-color:rgb(37 99 235 / var(--tw-bg-opacity, 1));font-weight:600;--tw-text-opacity: 1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.optional-badge[data-astro-cid-pkqywead]{display:flex;height:2rem;width:2rem;flex-shrink:0;align-items:center;justify-content:center;border-radius:9999px;--tw-bg-opacity: 1;background-color:rgb(71 85 105 / var(--tw-bg-opacity, 1));font-weight:600;--tw-text-opacity: 1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.step-content[data-astro-cid-pkqywead]{padding-left:2.75rem}
-</style></head> <body class="min-h-screen text-[var(--text-primary)] antialiased body-background">  <nav class="sticky top-0 z-50 border-b border-white/[0.06] bg-surface-0/95 backdrop-blur-md"> <div class="container mx-auto px-4 max-w-6xl"> <div class="flex items-center justify-between h-16"> <a href="/ha-mcp/docs/" class="flex items-center gap-2.5"> <img src="/ha-mcp/docs/icon.svg" alt="Home Assistant MCP" class="h-8 w-8"> <span class="font-display font-semibold text-white text-lg hidden sm:inline tracking-tight">ha-mcp</span> </a> <div class="flex items-center gap-1"> <a href="/ha-mcp/docs/" class="px-3 py-1.5 rounded-lg text-sm transition-colors text-[var(--text-secondary)] hover:text-white hover:bg-white/[0.04]"> Home </a><a href="/ha-mcp/docs/setup" class="px-3 py-1.5 rounded-lg text-sm transition-colors text-brand font-medium bg-brand/[0.08]"> Setup </a><a href="/ha-mcp/docs/tools" class="px-3 py-1.5 rounded-lg text-sm transition-colors text-[var(--text-secondary)] hover:text-white hover:bg-white/[0.04]"> Tools </a><a href="/ha-mcp/docs/faq" class="px-3 py-1.5 rounded-lg text-sm transition-colors text-[var(--text-secondary)] hover:text-white hover:bg-white/[0.04]"> FAQ </a><a href="/ha-mcp/docs/contribute" class="px-3 py-1.5 rounded-lg text-sm transition-colors text-[var(--text-secondary)] hover:text-white hover:bg-white/[0.04]"> Contribute </a> <label class="theme-control ml-2"> <span class="theme-control-label">Theme</span> <select id="themeToggle" class="theme-toggle" aria-label="Theme: light or dark mode"> <option value="auto">Auto (OS)</option> <option value="light">Light</option> <option value="dark">Dark</option> </select> </label> <div class="relative"> <button id="a11yToggle" type="button" class="theme-toggle ml-1" aria-label="Accessibility settings" aria-haspopup="dialog" aria-expanded="false" title="Accessibility settings">Accessibility</button> <div id="a11yPanel" class="a11y-panel" role="dialog" aria-label="Accessibility settings" hidden> <section class="a11y-section"> <h3 class="a11y-section-title">Theme</h3> <fieldset class="a11y-options"> <legend class="visually-hidden">Theme preset</legend> <label class="a11y-option"><input type="radio" name="a11y-preset" value="dark"> <span class="a11y-preset-chip" data-chip="dark" aria-hidden="true">Aa</span> Dark</label> <label class="a11y-option"><input type="radio" name="a11y-preset" value="light"> <span class="a11y-preset-chip" data-chip="light" aria-hidden="true">Aa</span> Light</label> <label class="a11y-option"><input type="radio" name="a11y-preset" value="auto"> <span class="a11y-preset-chip" data-chip="auto" aria-hidden="true"></span> Auto</label> <label class="a11y-option"><input type="radio" name="a11y-preset" value="paper"> <span class="a11y-preset-chip" data-chip="paper" aria-hidden="true">Aa</span> Paper</label> <label class="a11y-option"><input type="radio" name="a11y-preset" value="gray"> <span class="a11y-preset-chip" data-chip="gray" aria-hidden="true">Aa</span> Gray</label> <label class="a11y-option"><input type="radio" name="a11y-preset" value="contrast"> <span class="a11y-preset-chip" data-chip="contrast" aria-hidden="true">Aa</span> High Contrast</label> </fieldset> </section> <section class="a11y-section"> <h3 class="a11y-section-title">Text size</h3> <fieldset class="a11y-options"> <legend class="visually-hidden">Text size</legend> <label class="a11y-option"><input type="radio" name="a11y-font-size" value="100"> 100%</label> <label class="a11y-option"><input type="radio" name="a11y-font-size" value="115"> 115%</label> <label class="a11y-option"><input type="radio" name="a11y-font-size" value="130"> 130%</label> <label class="a11y-option"><input type="radio" name="a11y-font-size" value="150"> 150%</label> </fieldset> </section> <section class="a11y-section"> <h3 class="a11y-section-title">Custom colors</h3> <div class="a11y-swatches"> <label class="a11y-swatch">Background <input type="color" id="a11y-custom-bg" data-custom="bg"></label> <label class="a11y-swatch">Text <input type="color" id="a11y-custom-text" data-custom="text"></label> <label class="a11y-swatch">Accent <input type="color" id="a11y-custom-accent" data-custom="accent"></label> </div> <p class="a11y-contrast-warning" id="a11y-contrast-warning" hidden>
+</style></head> <body class="min-h-screen text-[var(--text-primary)] antialiased body-background">  <nav class="sticky top-0 z-50 border-b border-white/[0.06] bg-surface-0/95 backdrop-blur-md"> <div class="container mx-auto px-4 max-w-6xl"> <div class="flex items-center justify-between h-16"> <a href="/ha-mcp/docs/" class="flex items-center gap-2.5"> <img src="/ha-mcp/docs/icon.svg" alt="Home Assistant MCP" class="h-8 w-8"> <span class="font-display font-semibold text-white text-lg hidden sm:inline tracking-tight">ha-mcp</span> </a> <div class="flex items-center gap-1"> <a href="/ha-mcp/docs/" class="px-3 py-1.5 rounded-lg text-sm transition-colors text-[var(--text-secondary)] hover:text-white hover:bg-white/[0.04]"> Home </a><a href="/ha-mcp/docs/setup" class="px-3 py-1.5 rounded-lg text-sm transition-colors text-brand font-medium bg-brand/[0.08]"> Setup </a><a href="/ha-mcp/docs/tools" class="px-3 py-1.5 rounded-lg text-sm transition-colors text-[var(--text-secondary)] hover:text-white hover:bg-white/[0.04]"> Tools </a><a href="/ha-mcp/docs/faq" class="px-3 py-1.5 rounded-lg text-sm transition-colors text-[var(--text-secondary)] hover:text-white hover:bg-white/[0.04]"> FAQ </a><a href="/ha-mcp/docs/contribute" class="px-3 py-1.5 rounded-lg text-sm transition-colors text-[var(--text-secondary)] hover:text-white hover:bg-white/[0.04]"> Contribute </a> <label class="theme-control ml-2"> <span class="theme-control-label">Theme</span> <select id="themeToggle" class="theme-toggle" aria-label="Theme: light or dark mode"> <option value="auto">Auto (OS)</option> <option value="light">Light</option> <option value="dark">Dark</option> </select> </label> <div class="relative"> <button id="a11yToggle" type="button" class="theme-toggle ml-1" aria-label="Accessibility settings" aria-haspopup="dialog" aria-expanded="false" title="Accessibility settings">Accessibility</button> <div id="a11yPanel" class="a11y-panel" role="dialog" aria-label="Accessibility settings" hidden> <p class="a11y-contrast-warning" id="a11y-storage-note" hidden>
+Your browser is blocking site storage; choices apply for this
+              session only.</p> <section class="a11y-section"> <h3 class="a11y-section-title">Theme</h3> <fieldset class="a11y-options"> <legend class="visually-hidden">Theme preset</legend> <label class="a11y-option"><input type="radio" name="a11y-preset" value="dark"> <span class="a11y-preset-chip" data-chip="dark" aria-hidden="true">Aa</span> Dark</label> <label class="a11y-option"><input type="radio" name="a11y-preset" value="light"> <span class="a11y-preset-chip" data-chip="light" aria-hidden="true">Aa</span> Light</label> <label class="a11y-option"><input type="radio" name="a11y-preset" value="auto"> <span class="a11y-preset-chip" data-chip="auto" aria-hidden="true"></span> Auto</label> <label class="a11y-option"><input type="radio" name="a11y-preset" value="paper"> <span class="a11y-preset-chip" data-chip="paper" aria-hidden="true">Aa</span> Paper</label> <label class="a11y-option"><input type="radio" name="a11y-preset" value="gray"> <span class="a11y-preset-chip" data-chip="gray" aria-hidden="true">Aa</span> Gray</label> <label class="a11y-option"><input type="radio" name="a11y-preset" value="contrast"> <span class="a11y-preset-chip" data-chip="contrast" aria-hidden="true">Aa</span> High Contrast</label> </fieldset> </section> <section class="a11y-section"> <h3 class="a11y-section-title">Text size</h3> <fieldset class="a11y-options"> <legend class="visually-hidden">Text size</legend> <label class="a11y-option"><input type="radio" name="a11y-font-size" value="100"> 100%</label> <label class="a11y-option"><input type="radio" name="a11y-font-size" value="115"> 115%</label> <label class="a11y-option"><input type="radio" name="a11y-font-size" value="130"> 130%</label> <label class="a11y-option"><input type="radio" name="a11y-font-size" value="150"> 150%</label> </fieldset> </section> <section class="a11y-section"> <h3 class="a11y-section-title">Custom colors</h3> <div class="a11y-swatches"> <label class="a11y-swatch">Background <input type="color" id="a11y-custom-bg" data-custom="bg"></label> <label class="a11y-swatch">Text <input type="color" id="a11y-custom-text" data-custom="text"></label> <label class="a11y-swatch">Accent <input type="color" id="a11y-custom-accent" data-custom="accent"></label> </div> <p class="a11y-contrast-warning" id="a11y-contrast-warning" hidden>
 Heads-up: the chosen background and text colors fall below a 4.5:1
                 contrast ratio and may be hard to read together.</p> <button id="a11y-custom-clear" type="button" class="a11y-reset">Clear custom colors</button> </section> <button id="a11yReset" type="button" class="a11y-reset">Reset to defaults</button> </div> </div> </div> </div> </div> </nav> <div class="container mx-auto px-4 py-8 max-w-3xl" data-astro-cid-pkqywead> <!-- Header --> <header class="mb-10" data-astro-cid-pkqywead> <div class="flex items-center gap-2 text-sm text-slate-400 mb-4" data-astro-cid-pkqywead> <a href="/ha-mcp/docs/setup" class="hover:text-white" data-astro-cid-pkqywead>&larr; Back to Setup</a> </div> <div class="flex items-center gap-4 mb-4" data-astro-cid-pkqywead> <svg width="40" height="40" viewBox="0 0 24 24" fill="none" class="inline-block text-[var(--text-secondary)] flex-shrink-0" aria-hidden="true">  <path d="M11.932 6.908c.95 0 2.727-1.291 4.595-1.1.782.032 2.976.316 4.388 2.38-.113.069-2.622 1.528-2.593 4.565.034 3.617 3.166 4.828 3.221 4.85-.029.086-.506 1.723-1.658 3.416-1.002 1.463-2.039 2.919-3.675 2.95-1.606.03-2.125-.955-3.96-.955s-2.409.923-3.931.984c-1.581.06-2.78-1.58-3.79-3.037-2.065-2.98-3.64-8.422-1.527-12.087 1.051-1.824 2.93-2.98 4.969-3.009 1.549-.032 3.011 1.043 3.96 1.043zM16.552 0c.153 1.407-.411 2.817-1.251 3.833-.837 1.013-2.214 1.804-3.555 1.7-.185-1.378.495-2.814 1.27-3.712C13.883.805 15.346.05 16.553 0z" fill="currentColor"/> </svg> <div data-astro-cid-pkqywead> <h1 class="text-3xl font-bold text-white" data-astro-cid-pkqywead>macOS Setup Guide</h1> <p class="text-slate-400" data-astro-cid-pkqywead>Claude Desktop + Home Assistant in ~10 minutes</p> </div> </div> <div class="bg-green-900/20 border border-green-700/50 rounded-xl p-4" data-astro-cid-pkqywead> <p class="text-green-300 font-medium" data-astro-cid-pkqywead>Works with free Claude account - no subscription needed.</p> </div> </header> <!-- Steps --> <div class="space-y-8" data-astro-cid-pkqywead> <!-- Step 1 --> <section class="guide-step" data-astro-cid-pkqywead> <div class="step-header" data-astro-cid-pkqywead> <span class="step-number" data-astro-cid-pkqywead>1</span> <h2 class="text-xl font-semibold text-white" data-astro-cid-pkqywead>Create a Claude Account</h2> </div> <div class="step-content" data-astro-cid-pkqywead> <p class="text-slate-300 mb-4" data-astro-cid-pkqywead>Go to <a href="https://claude.ai" class="text-blue-400 hover:underline" target="_blank" data-astro-cid-pkqywead>claude.ai</a> and create a free account.</p> </div> </section> <!-- Step 2 --> <section class="guide-step" data-astro-cid-pkqywead> <div class="step-header" data-astro-cid-pkqywead> <span class="step-number" data-astro-cid-pkqywead>2</span> <h2 class="text-xl font-semibold text-white" data-astro-cid-pkqywead>Run the Installer</h2> </div> <div class="step-content" data-astro-cid-pkqywead> <p class="text-slate-300 mb-4" data-astro-cid-pkqywead>Open <strong data-astro-cid-pkqywead>Terminal</strong> and paste:</p> <pre class="code-block" data-astro-cid-pkqywead><code data-astro-cid-pkqywead>curl -LsSf https://raw.githubusercontent.com/homeassistant-ai/ha-mcp/master/scripts/install-macos.sh | sh</code></pre> <p class="text-slate-400 text-sm mt-3" data-astro-cid-pkqywead>This installs the required tools and configures Claude Desktop for the demo environment.</p> <details class="mt-4" data-astro-cid-pkqywead> <summary class="text-slate-400 hover:text-white cursor-pointer font-medium" data-astro-cid-pkqywead>Manual Installation (if the installer doesn't work)</summary> <div class="mt-4 pl-4 border-l-2 border-slate-700" data-astro-cid-pkqywead> <h4 class="font-medium text-white mb-2" data-astro-cid-pkqywead>Install uv</h4> <pre class="code-block mb-4" data-astro-cid-pkqywead><code data-astro-cid-pkqywead>brew install uv</code></pre> <p class="text-slate-400 text-sm mb-4" data-astro-cid-pkqywead>Or without Homebrew: <code class="bg-slate-800 px-1 rounded" data-astro-cid-pkqywead>curl -LsSf https://astral.sh/uv/install.sh | sh</code></p> <h4 class="font-medium text-white mb-2" data-astro-cid-pkqywead>Configure Claude Desktop</h4> <ol class="text-slate-300 space-y-2 mb-4" data-astro-cid-pkqywead> <li data-astro-cid-pkqywead>1. Open Claude Desktop</li> <li data-astro-cid-pkqywead>2. Menu bar → <strong data-astro-cid-pkqywead>Claude</strong> → <strong data-astro-cid-pkqywead>Settings...</strong> → <strong data-astro-cid-pkqywead>Developer</strong> → <strong data-astro-cid-pkqywead>Edit Config</strong></li> <li data-astro-cid-pkqywead>3. Paste the following configuration:</li> </ol> <pre class="code-block" data-astro-cid-pkqywead><code data-astro-cid-pkqywead>{
   &quot;mcpServers&quot;: {
@@ -102,13 +114,14 @@ Having issues? See the <a href="/ha-mcp/docs/faq" class="text-blue-400 hover:und
       // attributes. The Layout head anti-FOUC script already set the initial
       // attributes; this module keeps them in sync for the rest of the
       // session and persists user changes. The block from `const PREFS` to
-      // `const APPLY` is mirrored verbatim in src/ha_mcp/settings.js and
-      // guarded by tests/src/unit/test_anti_fouc_parity.py.
+      // `const APPLY` must stay logically identical to src/ha_mcp/settings.js
+      // (comments and formatting may differ) — enforced by
+      // tests/src/unit/test_anti_fouc_parity.py.
       (function bindAccessibilityPrefs() {
         const root = document.documentElement;
         const mql = window.matchMedia('(prefers-color-scheme: light)');
         const PREFS = {
-          theme:    { key: 'ha-mcp-theme',         default: 'dark'      },
+          theme:    { key: 'ha-mcp-theme',         default: 'auto'      },
           fontSize: { key: 'ha-mcp-font-size',     default: '100'       },
           contrast: { key: 'ha-mcp-contrast',      default: 'normal'    },
           shade:    { key: 'ha-mcp-shade',         default: 'off-white' },
@@ -130,7 +143,11 @@ Having issues? See the <a href="/ha-mcp/docs/faq" class="text-blue-400 hover:und
           catch (_) { return PREFS[p].default; }
         };
         const write = (p, v) => {
-          try { localStorage.setItem(PREFS[p].key, v); } catch (_) { /* private mode */ }
+          let stored = true;
+          try { localStorage.setItem(PREFS[p].key, v); } catch (_) { stored = false; }
+          // Surface-specific follow-up (server sync on the settings UI,
+          // blocked-storage note on both) lives outside this mirrored core.
+          if (window.__haMcpPrefsHook) window.__haMcpPrefsHook(p, v, stored);
         };
 
         // Apply functions mirror what the anti-FOUC head script does, so the
@@ -179,6 +196,16 @@ Having issues? See the <a href="/ha-mcp/docs/faq" class="text-blue-400 hover:und
           return custom;
         };
         const APPLY = { theme: applyTheme, fontSize: applyFontSize, contrast: applyContrast, shade: applyShade, custom: applyCustom };
+
+        // #1574 review: surface a blocked localStorage (private mode /
+        // storage-blocking browsers) once instead of silently losing the
+        // choices on reload. The docs site is a static build, so unlike the
+        // settings UI there is no server to persist to — the note is the
+        // whole story here.
+        const storageNote = document.getElementById('a11y-storage-note');
+        window.__haMcpPrefsHook = (pref, value, stored) => {
+          if (!stored && storageNote) storageNote.hidden = false;
+        };
 
         const setPref = (pref, value) => {
           write(pref, value);

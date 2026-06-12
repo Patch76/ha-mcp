@@ -8,16 +8,53 @@
      /favicon.ico (which would 404 and log a console error, since the
      settings server serves no such asset in any deployment mode). -->
 <link rel="icon" href="data:,">
+<script data-purpose="server-prefs" data-prefs="{}">
+  // #1574 review: theme/accessibility prefs also persist server-side
+  // (theme_prefs.json) because stdio respawns its settings sidecar on a
+  // random port — a fresh origin whose localStorage starts empty. The page
+  // handler substitutes the data-prefs attribute at request time; this
+  // seeds only MISSING localStorage keys (the browser's own latest choice
+  // wins) before the anti-FOUC resolver below reads them. The docs site is
+  // a static build and stays localStorage-only.
+  (function () {
+    var el = document.currentScript;
+    var raw = el ? el.getAttribute("data-prefs") : "";
+    if (!raw || raw.charAt(0) !== "{") return; // unsubstituted placeholder
+    var KEYS = {
+      theme: "ha-mcp-theme",
+      fontSize: "ha-mcp-font-size",
+      contrast: "ha-mcp-contrast",
+      shade: "ha-mcp-shade",
+      custom: "ha-mcp-custom-colors",
+    };
+    try {
+      var prefs = JSON.parse(raw);
+      for (var p in KEYS) {
+        if (typeof prefs[p] !== "string" || !prefs[p]) continue;
+        try {
+          if (localStorage.getItem(KEYS[p]) === null) {
+            localStorage.setItem(KEYS[p], prefs[p]);
+          }
+        } catch (e) { /* storage blocked — the runtime module shows a note */ }
+      }
+    } catch (e) {
+      // Malformed substitution — defaults apply; warn like the anti-FOUC
+      // resolver does so the breakage is visible in the console.
+      console.warn("ha-mcp: malformed server prefs, using defaults:", e);
+    }
+  })();
+</script>
 <script data-purpose="anti-fouc">
   // #1572 accessibility-pref resolver — runs before CSS evaluates so
   // data-theme / data-contrast / data-shade and the root font-size are set
   // on <html> ahead of paint (no FOUC, no jump). Reads saved choices from
-  // localStorage with safe defaults. Dark is the default (#1574 review:
-  // existing users rely on the current look); "auto" is opt-in and
-  // resolves via prefers-color-scheme.
-  // Duplicate of the same logic in site/src/layouts/Layout.astro head — both
-  // surfaces share the localStorage keys, so any change here must be mirrored
-  // there (and vice versa) or one surface paints with the wrong attributes.
+  // localStorage with safe defaults. Auto is the default (#1574 review:
+  // follow the OS preference out of the box); Dark stays one click away
+  // as a preset.
+  // Same logic as in site/src/layouts/Layout.astro head — both surfaces use
+  // the same localStorage key names interpreted identically, but storage is
+  // per-origin, so each surface keeps its own saved values. Any change here
+  // must be mirrored there (and vice versa) or the surfaces drift apart.
   // Enforced by tests/src/unit/test_anti_fouc_parity.py.
   (function () {
     var root = document.documentElement;
@@ -25,7 +62,7 @@
       try { return localStorage.getItem(key) || fallback; } catch (e) { return fallback; }
     }
     try {
-      var themePref = readPref("ha-mcp-theme", "dark");
+      var themePref = readPref("ha-mcp-theme", "auto");
       var theme = themePref === "auto"
         ? (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")
         : themePref;
@@ -72,9 +109,17 @@
             root.style.setProperty("--brand", channels(custom.accent));
           }
         }
-      } catch (e2) { /* ignore malformed custom colors */ }
+      } catch (e2) {
+        // Corrupted custom-colors JSON would re-fail on every load; drop
+        // it so the next visit starts clean instead of wedged.
+        try { localStorage.removeItem("ha-mcp-custom-colors"); } catch (e3) { /* storage blocked */ }
+      }
     } catch (e) {
-      // localStorage may throw in private mode; fall back to dark default.
+      // localStorage is already guarded inside readPref — this catch
+      // guards everything else (matchMedia, attribute writes). Warn so a
+      // shipped bug here is visible in the console instead of hiding
+      // behind the silent dark fallback.
+      console.warn("ha-mcp accessibility prefs failed to apply:", e);
       root.setAttribute("data-theme", "dark");
     }
   })();
@@ -84,8 +129,9 @@
     /* Native form controls / scrollbars follow the scheme (MDN: color-scheme);
        the light block below flips it. */
     color-scheme: dark;
-    /* Accent used AS TEXT on tinted chips (a11y options): #0a84ff measures
-       3.82:1 on the dark chip fill, so text gets its own readable shade. */
+    /* Accent used AS TEXT on tinted chips (a11y options): the base accent
+       (#0a84ff) doesn't meet contrast requirements, so text gets its own
+       readable shade. */
     --accent-text: #66b3ff;
     --bg: #1c1c1e; --surface: #2c2c2e; --surface-hover: #3a3a3c;
     /* Semantic tokens for surfaces that previously hard-coded per-scheme
@@ -535,14 +581,15 @@
   :root[data-theme="light"][data-shade="gray"]  { --bg: #d4d6da; }
   :root[data-theme="light"][data-shade="pure"]  { --bg: #ffffff; }
 
-  /* High-contrast tier (#1572). Mirrors `prefers-contrast: more` and the
-     WCAG 2.2 1.4.6 AAA threshold (7:1 for body text). The dark scheme pushes
-     foregrounds toward pure white and tightens borders; the light scheme
-     pushes toward pure black. Body weight bumps to 500 so the strokes carry
-     the extra contrast (a known APCA lever for low-vision readers).
-     Scope: lifts the four primary text/UI variables — notices and badges
-     (.pin-notice, .readonly-notice, .danger-btn, diff hues) keep their own
-     hand-tuned palette so they read as the same callout in both tiers. */
+  /* High-contrast tier (#1572). Set via the Accessibility panel
+     (data-contrast="high"), targeting the WCAG 2.2 1.4.6 AAA threshold (7:1
+     for body text). The dark scheme pushes foregrounds toward pure white and
+     tightens borders; the light scheme pushes toward pure black. Body weight
+     bumps to 500 so the strokes carry the extra contrast (a known APCA lever
+     for low-vision readers). Scope: lifts the four primary text/UI
+     variables — notices and badges (.pin-notice, .readonly-notice,
+     .danger-btn, diff hues) keep their own hand-tuned palette so they read as
+     the same callout in both tiers. */
   :root[data-contrast="high"] body { font-weight: 500; }
   :root[data-contrast="high"][data-theme="dark"] {
     --text: #ffffff; --text-secondary: #e0e0e0; --border: #6c6c70; --accent: #4ca8ff;
@@ -772,13 +819,18 @@
 </div>
 <div class="panel" id="panel-accessibility">
   <p class="tool-desc" style="margin-bottom:16px">
-    These settings are stored in this browser only (localStorage); nothing is
-    sent to the server. They apply per site &mdash; the docs site offers the same
-    controls in its navigation bar, saved separately by your browser.
+    These settings apply immediately and are saved in this browser and on the
+    server, so they survive restarts in every mode (including stdio, where the
+    settings page moves to a fresh port each session). The docs site offers
+    the same controls in its navigation bar; it has no server and saves per
+    browser.
   </p>
+  <p class="a11y-contrast-warning" id="a11y-storage-note" hidden>
+    Your browser is blocking site storage; choices apply for this session
+    only.</p>
   <section class="a11y-section">
     <h3 class="a11y-section-title">Theme</h3>
-    <p class="a11y-section-help">One-click color schemes. Dark is the default; Auto follows
+    <p class="a11y-section-help">One-click color schemes. Auto is the default &mdash; it follows
       your OS preference and flips live when it changes.</p>
     <fieldset class="a11y-options">
       <legend class="visually-hidden">Theme preset</legend>
@@ -3849,13 +3901,14 @@ loadFsCustomPaths();
 // localStorage / <html> attributes. The anti-FOUC head script already set
 // the initial attributes; this module keeps them in sync for the rest of
 // the session and persists user changes. The block from `const PREFS` to
-// `const APPLY` is mirrored verbatim in site/src/layouts/Layout.astro and
-// guarded by tests/src/unit/test_anti_fouc_parity.py.
+// `const APPLY` must stay logically identical to the copy in
+// site/src/layouts/Layout.astro (comments and formatting may differ) —
+// enforced by tests/src/unit/test_anti_fouc_parity.py.
 (function bindAccessibilityPrefs() {
   const root = document.documentElement;
   const mql = window.matchMedia('(prefers-color-scheme: light)');
   const PREFS = {
-    theme:    { key: 'ha-mcp-theme',         default: 'dark'      },
+    theme:    { key: 'ha-mcp-theme',         default: 'auto'      },
     fontSize: { key: 'ha-mcp-font-size',     default: '100'       },
     contrast: { key: 'ha-mcp-contrast',      default: 'normal'    },
     shade:    { key: 'ha-mcp-shade',         default: 'off-white' },
@@ -3877,7 +3930,11 @@ loadFsCustomPaths();
     catch (_) { return PREFS[p].default; }
   };
   const write = (p, v) => {
-    try { localStorage.setItem(PREFS[p].key, v); } catch (_) { /* private mode */ }
+    let stored = true;
+    try { localStorage.setItem(PREFS[p].key, v); } catch (_) { stored = false; }
+    // Surface-specific follow-up (server sync on the settings UI,
+    // blocked-storage note on both) lives outside this mirrored core.
+    if (window.__haMcpPrefsHook) window.__haMcpPrefsHook(p, v, stored);
   };
 
   // Apply functions mirror what the anti-FOUC head script does, so the
@@ -3926,6 +3983,37 @@ loadFsCustomPaths();
     return custom;
   };
   const APPLY = { theme: applyTheme, fontSize: applyFontSize, contrast: applyContrast, shade: applyShade, custom: applyCustom };
+
+  // #1574 review: localStorage is the synchronous store the anti-FOUC
+  // script reads at paint time, but it is origin-scoped and the stdio
+  // sidecar binds a fresh random port (= fresh empty origin) per session.
+  // This hook therefore (a) mirrors every change to the server
+  // (./api/settings/theme -> theme_prefs.json), which seeds the next
+  // fresh origin via the server-prefs head script, and (b) surfaces a
+  // blocked localStorage (private mode) once instead of silently losing
+  // the choices on reload. Debounced so color-picker drags don't flood
+  // the endpoint; best-effort because the browser copy already applied.
+  const storageNote = document.getElementById('a11y-storage-note');
+  const pendingPrefs = {};
+  let prefsSyncTimer = null;
+  window.__haMcpPrefsHook = (pref, value, stored) => {
+    if (!stored && storageNote) storageNote.hidden = false;
+    pendingPrefs[pref] = value;
+    clearTimeout(prefsSyncTimer);
+    prefsSyncTimer = setTimeout(() => {
+      const body = JSON.stringify(pendingPrefs);
+      for (const k in pendingPrefs) delete pendingPrefs[k];
+      fetch('./api/settings/theme', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      }).then((resp) => {
+        // A non-2xx means client and server disagree about valid values —
+        // an implementation bug worth a console trail, not a user error.
+        if (!resp.ok) console.warn('ha-mcp: theme prefs not persisted:', resp.status);
+      }).catch(() => { /* offline / sidecar gone — localStorage still has it */ });
+    }, 400);
+  };
 
   const setPref = (pref, value) => {
     write(pref, value);

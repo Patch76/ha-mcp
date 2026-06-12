@@ -60,12 +60,14 @@
 
   <h2>V3 — current (what the PR proposes)</h2>
   <div class="card">
-    <h3>One-click presets + custom colors, dark default</h3>
+    <h3>One-click presets + custom colors, auto default</h3>
     <p>The radio groups collapse into Reader-View-style presets (Dark, Light, Auto, Paper,
       Gray, High Contrast) with miniature scheme swatches, plus Background / Text / Accent
-      color pickers with a contrast warning. <strong>Dark stays the default</strong> — use the
-      Theme select or the Accessibility panel to switch. Notices use the new neutral-text
-      callout style.</p>
+      color pickers with a contrast warning. <strong>Auto (follow OS) is the default</strong> —
+      use the Theme select or the Accessibility panel to switch. Notices use the new
+      neutral-text callout style. (The PR also persists prefs server-side for the settings
+      UI; that part has no backend on this static preview, so here everything stays
+      per-browser.)</p>
     <a class="preview-link" href="./docs/index.html">Docs (V3) →</a>
     &nbsp;<a class="preview-link" href="./settings-preview.html">Settings UI (V3) →</a>
   </div>
