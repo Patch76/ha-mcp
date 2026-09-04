@@ -2768,3 +2768,5 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+# measurement arm B (#2311 cache-key buster, fork-only; never upstream)
